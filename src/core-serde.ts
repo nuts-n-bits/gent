@@ -2,7 +2,7 @@
 The Kiss Encoding: 
 	DataFrame(frame_id, body_buffer) => VarInt(frame_id) ^ VarInt(l) ^ [ body buffer ] 
 	where body_buffer.length == l
-This encoding witll be the core serde for the tgen data format.
+This encoding will be the core serde for the gent data format.
 This encoding requires minimum 3 bytes to represent any meaningful data, for example:
 	{ status: 200 } will probably become b"\x01\x01\xC8"
 	{ status: 300 } will probably become b"\x01\x02\x01\x2C"

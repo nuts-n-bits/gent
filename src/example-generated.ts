@@ -11,49 +11,6 @@ message Revision {
         #22 content = optional text
 }
 
-message User {
-        #1 id     = text 
-        #3 handle = text
-        #6 groups = repeated message UserGroups
-        #8 email   = optional text
-        #9 ext_idents = repeated message UserExtIdents
-        #10 open_sessions = repeated message {
-                #1 device  = text
-                #2 t_login = timestamp
-        }
-        #11 homepage_elements = enum {
-                #1 anonymous = nil
-                #2 admin = message AdminHomeElements
-        }
-}
-
-message AdminHomeElements {
-        #1 email_reset_token = optional text
-        #2 password_token = optional text
-        #3 noticeboard_news = repeated message {
-                #1 headline = text
-                #2 content_excerpt = text
-                #3 author_id = text
-                #4 author_name = text
-        }
-        #4 notifications = repeated Notification
-}
-
-message UserGroups {
-        #1 ns        = text
-        #2 name      = text
-        #11 t_create = optional timestamp
-        #12 expire   = optional timestamp
-}
-
-message UserExtIdents {
-        #1 ext_host  = text
-        #2 ext_ident = text
-        #3 ext_email = optional text
-        #4 t_create = optional timestamp
-        #5 expire = optional timestamp
-}
-
 */
 
 abstract class GeneratedClass {
@@ -128,7 +85,7 @@ class Revision {
                 }
         }
         get_content(): string {
-
+                if 
         }
         set_content(a: string): void {
 
