@@ -14,7 +14,7 @@ where
 Although with Protobuf wire format this will be 2 bytes but I like this more, because it has no format variation
 */
 
-export type DataFrame = { frame_id: bigint, payload: Uint8Array };
+export type DataFrame = { frame_id: bigint, payload: Uint8Array[] };
 
 /** 
  * @member FD_BYTE: How many bytes the decoder will tolerate the FRAME_DESCRIPTOR (i.e. VarInt(frame_id)) before giving up, defaults to 8, which allows any frameId between 0 and 2^56-1
@@ -50,11 +50,9 @@ export class DecodeWorktable {
 		const i2 = i - input_partial_sum_len + this.inputQ[current_chunk_index]!.length;
 		return this.inputQ[current_chunk_index]![i2];
 	}
-	public load(buf: Uint8Array, COALEASE_THRESHOLD = 100) { 
+	public load(buf: Uint8Array) { 
 		if (buf.length === 0) { return; }
-		const coalease_crit = this.inputQ.length > 0 && (this.inputQ[this.inputQ.length-1]!.length + buf.length) < COALEASE_THRESHOLD;
-		if (coalease_crit) { this.inputQ[this.inputQ.length-1] = concat2(this.inputQ[this.inputQ.length-1]!, buf); } 
-		else { this.inputQ.push(buf); }
+		this.inputQ.push(buf);
 		this.inputSumLen += buf.length;
 	}
 	public drop(): Uint8Array[] {
@@ -94,7 +92,7 @@ export class DecodeWorktable {
 		if (this.inputSumLen < (body_len + fdvi_coll.length + ldvi_coll.length)) { return body_len + fdvi_coll.length + ldvi_coll.length - this.inputSumLen; }  // step() does nothing again, inputQ not enough data to form a DataFrame
 		/* Discard return value = */ this.unload(fdvi_coll.length + ldvi_coll.length);
 		const payload = this.unload(body_len);
-		return { frame_id: frame_id, payload: concat(payload) };
+		return { frame_id: frame_id, payload: payload };
 	}
 	// assume have enough!
 	private unload(bytes: number): Uint8Array[] {
@@ -167,12 +165,14 @@ export class KisseCore {
 	static* encode(frame: DataFrame): Iterable<Uint8Array> { 
 		const frame_header = encode_varint(frame.frame_id).concat(encode_varint(BigInt(frame.payload.length)));
 		yield new Uint8Array(frame_header);
-		if (frame.payload.length > 0) { yield frame.payload; }
+		for (const fragment of frame.payload) {
+			if (fragment.length > 0) { yield fragment; }
+		}
 	}
 	static* decode(buffers: Iterable<Uint8Array>, sec = {} as SecT): Iterable<DataFrame> {
 		const worktable = new DecodeWorktable(sec);
 		for (const buffer of buffers) {
-			worktable.load(buffer, 0);
+			worktable.load(buffer);
 			while (true) { 
 				const produced = worktable.step();
 				if (produced instanceof Error) { throw produced; }
