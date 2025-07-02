@@ -1,0 +1,116 @@
+
+|0| arinit -ns zhwp -with-revs [
+        (rev -r 527 -t 20251109 -u Hinata -c "...")
+        (rev -r 598 -t 20250623 -u Blue -c ".....)
+]
+
+|0| arsync -session |3| -revs [..|2|] -config (..|4|)
+|3| "XnDfGh4E3qlMps"
+|4| config
+|4| -extended-expiration true
+|4| -view-limitations false
+!4!
+|2| (..|5|)
+|5| addrev
+|5| -r 1994873
+|5| -t 20250615
+|5| -u Hinata
+|5| -c "....."
+!5!
+|2| addrev -r 193982 -t 20250307 -u Hinata -c "....."
+
+
+-k v -k2 v2 ==> { "k": "v", "k2": "v2" }
+arinit -k v -k2 v2 ==> { "type": "arinit", "k": "v", "k2": "v2" }
+addrev "132442" ==> { "type": "addrev", "value": "132442" }
+addrev ["132442" "139509"] -addrev [..|2|] ==> { "type": "addrev", "value": ["132442", 139509"] }
+-type "addrev" -value "132442" ==> { "type": "addrev", "value": "132442" }
+addrev -type "addrev" !! Error "redefinition of field type, the first string/identifier term implicitly defines type field"
+addrev "132442" "139509" -data "1332" ==> { "type": "addrev", "value": ["132442", 139509"], data: "1332" }
+
+|0| addrev .... // this is a struct type
+|0| ["addrev"]  // this is a list type
+|0| "addrev" // this is a single term, an atomic value (because it starts with a string)
+|0| false // atomic
+|0| true // atomic
+|0| null // atomic
+|0| message // dictionary { "type": "message" }
+|0| |1|
+
+{ "type": "arsync", "session": "XnDfGh4E3qlMps", "addrev": [] }
+
+REQ ====
+|arinit| -ns zhwp
+|arsync| arsync -session "XnDfGh4E3qlMps" -addrev [...|a|] -userinfo (addrev "pp")
+|a| 
+
+
+
+REQ ====
+[0] arinit -ns zhwp;
+
+RES ----
+[0] response_arinit -session XnDfGh4E3qlMps -case-number 20250624 -case-id mapjo3nd1x2l -hard-expiry 2025-06-21T19:58:31.472Z;
+
+REQ ====
+[0] arsync -session XnDfGh4E3qlMps [+1];
+[1] addrev -r 199242 -t 2023-08-11T15:54:22Z -un Hinata -u 199482 -s "Nominated for CSD ..." -c "{{d|G11}}\n......";
+[1] addrev -r 197809 -t 2023-08-09T04:12:48Z -un T.A.Shirakawa -u 4298487 -s "Cleanup ..." -c ".......";
+[1] addpc "大大小小的事情 (电视剧)";
+[1] addpid 7183 [-1];
+
+RES ----
+[0] response_arsync -session XnDfGh4E3qlMps -status accepting -case_number 20250624 [+1];
+[1] response_addrev success -rev-hash xF4F2jd0pL4kTv2-XnP= -revid 199242;
+[1] response_addrev success -rev-hash kMxlE2r1CXp04b5zg4N= -revid 197809;
+[1] repsonse_addpc success "大大小小的事情 (电视剧)";
+[1] repsonse_addpid success 7183;
+[1] response_arsync_summary -ok 4 -ok-addrev 2 -ok-addpc 1 -ok-addpid 1 -fail 0 -fail-addrev 0 -fail-addpc 0 -fail-addpid 0 [-1];
+
+|0| arinit -session 
+
+
+
+
+
+REQ
+
+exact literal:   true, false, null
+numeric literal: 492897479174
+
+
+
+value/string:          "..."
+value/numlit:          1983472
+value/literal:         true / false / null
+value/dict:            { k: "v" }
+value/list:            ["kent", "bob", "pat"]
+value/channel/oneshot: wait |1|
+value/channel/tolist:  [...|2|]
+value/channel/entries: {...|3|}
+
+
+
+|1| { session: "XnDf", addrev: [...|2|] }
+|0| { arinit: once |1| }
+|1| { session:"XnDf", addrev: [ ...|2| ]}
+|2| { ...|3| }
+|3| { r: 387163 }
+|3| { t: "2025-11-23T03:09:42Z" }
+|3| { u: 113137 }
+|3| { un: "Bluedeck" }
+|3| { s: "" }
+|3| { c: "" }
+!3!
+|2| { ...|4| }
+|4|
+!4!
+!2!
+|3| 
+
+|want| ...[{ channel: 1, size: 200 }]
+|want| ...[]
+
+resolves to: { arinit: { session: "XnDf", addrev: [ { r: ...., t: ...., .... } ] } }
+
+

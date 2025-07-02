@@ -1,0 +1,28 @@
+# This quasi spec describes a format where the bytes are already delimited. 
+# The buffers come in with a size property and there is no ambiguity as to where it begins and ends. 
+# Within that buffer, the following structure applies.
+#
+
+Data Frame = Type A Buffer <or> Type B Buffer
+Type A Buffer = Channel Header <concat> Bytes
+Type B Buffer = Channel Closure Bytes
+
+Channel Header Example
+        let chanids [A,B,C] be the message we want to encode with type A self-delimiting chanid sequence.
+        let A = aaaaaa, B = bbbbbb_bbbbbb, C = cccccc_cccccc_cccccc, where lowercase letters are the laid out bit patterns of A, B, and C. (chanids are always bit patterns where bitlength = 6n)
+        first, layout every bit in the 6 lsb places of each bytes in order:                __aaaaaa __bbbbbb __bbbbbb __cccccc __cccccc __cccccc
+        then, write 1 to the msb of every byte but the last one:                           1_aaaaaa 1_bbbbbb 1_bbbbbb 1_cccccc 1_cccccc 0_cccccc
+        then, if a byte is the last byte of a single chanid, write 1 at the second msb:    11aaaaaa 1_bbbbbb 11bbbbbb 1_cccccc 1_cccccc 01cccccc
+        otherwise, write 0 at the second msb:                                              11aaaaaa 10bbbbbb 11bbbbbb 10cccccc 10cccccc 01cccccc
+        These 6 bytes can be prepended to any message and the first msb will act as a delimiter of where the header ends (0-ends), and the second msb 
+        acts as a delimiter for where each chanid ends (1-ends).
+
+Channel Closure Bytes Example 
+        let chanid A be the message we want to encode with type B chanid sequence.
+        let A = aaaaaa_aaaaaa, where lowercase letters are the laid out bit patterns of A.
+        first, layout every bit in the 6 lsb places of each bytes in order: __aaaaaa __aaaaaa
+        then, fill 0 at every bit yet-defined:                              00aaaaaa 00aaaaaa
+        this message can only contain one single chanid since it does not delimit itself.
+        this message cannot be prepended to some other buffer because it does not delimit itself.
+        the whole message is just this one chanid.
+

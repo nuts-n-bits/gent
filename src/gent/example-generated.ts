@@ -85,7 +85,7 @@ class Revision {
                 }
         }
         get_content(): string {
-                if 
+                return ""
         }
         set_content(a: string): void {
 
