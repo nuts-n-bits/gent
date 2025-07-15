@@ -25,6 +25,14 @@ class UnsignedDecimalT {
 //    -rev: string repeated
 //    #args: string repeated
 
+/**
+ * 
+ * 
+ * arsync2 --session XnDf9gHEh  
+ * 
+ * 
+ */
+
 class Addrev {
         #arg: string[] = [];
         #option_revid: UnsignedDecimalT;
