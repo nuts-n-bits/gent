@@ -1,14 +1,17 @@
 /*
 
-Defintion
+-- Defintion
 
-message Upload {
-        #14 session          = text
-        #24 revisions        = repeated message Revision
+struct Arsync4 {
+        1 = case_id: string
+        2 = case_number: string
+        3 = revisions: struct Revision (stream)
+        4 = addpid: string (repeated)
+        5 = addpc: string (repeated)
 }
 
-message Revision {
-        #22 content = optional text
+struct Revision {
+        1 = revid: string (optional)
 }
 
 */

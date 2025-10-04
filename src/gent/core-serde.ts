@@ -4,23 +4,24 @@ The Kiss Encoding:
 	where body_buffer.length == l
 This encoding will be the core serde for the gent data format.
 This encoding requires minimum 3 bytes to represent any meaningful data, for example:
-	{ status: 200 } will probably become b"\x01\x01\xC8"
-	{ status: 300 } will probably become b"\x01\x02\x01\x2C"
+	Example data { status: 200 } will probably become b"\x01\x01\xC8"
+	Example data { status: 300 } will probably become b"\x01\x02\x01\x2C"
 where 
 	first byte 0x01 is varint for frame_id, assigned for "status" field in some proto file
 	second byte 0x01 or 0x02 is the length of the following body encoded in varint
 	the rest is body, in this case simply encoded in binary form (200 = \xC8, 300 = \x01\x2C)
-
-Although with Protobuf wire format this will be 2 bytes but I like this more, because it has no format variation
+It's a super simple encoding so it is easy to implement correctly.
 */
 
-export type DataFrame = { frame_id: bigint, payload: Uint8Array[] };
-
 /** 
- * @member FD_BYTE: How many bytes the decoder will tolerate the FRAME_DESCRIPTOR (i.e. VarInt(frame_id)) before giving up, defaults to 8, which allows any frameId between 0 and 2^56-1
- * @member LD_BYTE: How many bytes the decoder will tolerate the LENGTH_DESCRIPTOR (i.e. the varint that encodes payload length) before giving up, defaults to 8, which allows (0 ~ 2^56-1) to be represented
- * @member BODY_BYTE: How many bytes the decoder will allow the body to build up, i.e. actual length limit for each field. Defaults to 1<<30, which means each field can be 1GiB.
- * This value is a js number so precision is up to 2^53-1 due to IEEE754. *The body in memory will only build up to this length, then decoder will stop working, even if LD_BYTE allows a larger LD to be parsed.*
+ * @member FD_BYTE: How many bytes the decoder will tolerate the FRAME_DESCRIPTOR (i.e. VarInt(frame_id)) before giving 
+ * 		up, defaults to 8, which allows any frameId between 0 and 2^56-1
+ * @member LD_BYTE: How many bytes the decoder will tolerate the LENGTH_DESCRIPTOR (i.e. the varint that encodes payload 
+ * 		length) before giving up, defaults to 8, which allows (0 ~ 2^56-1) to be represented
+ * @member BODY_BYTE: How many bytes the decoder will allow the body to build up, i.e. actual length limit for each 
+ * 		field. Defaults to 1<<30, which means each field can be 1GiB.
+ * This value is a js number so precision is up to 2^53-1 due to IEEE754. *The body in memory will only build up to this 
+ * 		length, then decoder will stop working, even if LD_BYTE allows a larger LD to be parsed.*
  */
 export type SecT = { FD_BYTE?: number, LD_BYTE?: number, BODY_BYTE?: number };
 const SEC_FALLBACK_FD_BYTE = 8;
@@ -65,16 +66,25 @@ export class DecodeWorktable {
 		return this.inputSumLen;
 	}
 	/** @returns
-	 * - If returns DataFrame, this is one complete DataFrame and the corresponding data has been removed from internal state. The remaining input might contain more DataFrames and you are encouraged to call step() again to get these frames.
-	 * - If returns number, the data has not been touched and the only reason would be that the current input data does not yet form a complete frame. If the number is -1, then the header is incomplete. If the number is > 0, then that means how many bytes are missing from the body. If you call step() again without loading more input, it will return the same number again and there is no point to do this. Load more chunks first, then call again.
-	 * - If returns Error, then one of the sec Errors have been triggered. Either drop() and put data into another worktable with a bigger sec threshold, or maybe data is corrupt. Either way, data is preserved and not touched since the last time step() returned a DataFrame. */
-	public step(): DataFrame | number | Error {
+	 * - If returns DataFrame, this is one complete DataFrame and the corresponding data has been removed from internal 
+	 * 		state. The remaining input might contain more DataFrames and you are encouraged to call step() again to get 
+	 * 		these frames.
+	 * - If returns number, the data has not been touched and the only reason would be that the current input data does 
+	 * 		not yet form a complete frame. If the number is -1, then the header is incomplete. If the number is > 0, 
+	 * 		then that means how many bytes are missing from the body. If you call step() again without loading more 
+	 * 		input, it will return the same number again and there is no point to do this. Load more chunks first, then 
+	 * 		call again.
+	 * - If returns Error, then one of the sec Errors have been triggered. Either drop() and put data into another 
+	 * 		worktable with a bigger sec threshold, or maybe data is corrupt. Either way, data is preserved and not 
+	 * 		touched since the last time step() returned a DataFrame. */
+	public step(): { frameid: bigint, data: Uint8Array[] } | number | Error {
 		if (this.inputSumLen === 0) { return -1; }
 		const fdvi_coll = [] as number[]; // frame descriptor varint collection
 		for (let i=0; true; i++) {
 			if (i >= this.SEC_FD_BYTE) { return new Error("frame descriptor overlength limit " + this.SEC_FD_BYTE); }
 			const varint_byte = this.inputPeek(i);
-			if (varint_byte === undefined) { return -1; }  // step() does nothing since the inputQ does not have enough data to form a varint header
+			// step() does nothing since the inputQ does not have enough data to form a varint header
+			if (varint_byte === undefined) { return -1; }  
 			fdvi_coll.push(varint_byte);
 			if ((varint_byte & 0x80) === 0) { break; }  // continue out of the loop
 		}
@@ -82,17 +92,44 @@ export class DecodeWorktable {
 		for (let i=0; true; i++) {
 			if (i >= this.SEC_LD_BYTE) { return new Error("length descriptor overlength limit " + this.SEC_LD_BYTE); }
 			const varint_byte = this.inputPeek(i + fdvi_coll.length);
-			if (varint_byte === undefined) { return -1; }  // step() does nothing since the inputQ does not have enough data to form a varint header
+			// step() does nothing since the inputQ does not have enough data to form a varint header
+			if (varint_byte === undefined) { return -1; }  
 			ldvi_coll.push(varint_byte);
 			if ((varint_byte & 0x80) === 0) { break; }  // continue out of the loop
 		}
 		const frame_id = decode_varint(fdvi_coll);
 		const body_len = Number(decode_varint(ldvi_coll));
 		if (body_len > this.SEC_BODY_BYTE) { return new Error("body overlength limit " + this.SEC_BODY_BYTE); }
-		if (this.inputSumLen < (body_len + fdvi_coll.length + ldvi_coll.length)) { return body_len + fdvi_coll.length + ldvi_coll.length - this.inputSumLen; }  // step() does nothing again, inputQ not enough data to form a DataFrame
+		if (this.inputSumLen < (body_len + fdvi_coll.length + ldvi_coll.length)) { 
+			// step() does nothing again, inputQ not enough data to form a DataFrame
+			return body_len + fdvi_coll.length + ldvi_coll.length - this.inputSumLen; 
+		}  
 		/* Discard return value = */ this.unload(fdvi_coll.length + ldvi_coll.length);
 		const payload = this.unload(body_len);
-		return { frame_id: frame_id, payload: payload };
+		return { frameid: frame_id, data: payload };
+	}
+	// this is similar to step(), except it expects its body to be LD(bytes) ++ Ld(bytes) ++ ...
+	// it should only be used the contents of a repeated frame that is using compact representation.
+	public stepCompact(): Uint8Array[] | number | Error {
+		if (this.inputSumLen === 0) { return -1; }
+		const ldvi_coll = [] as number[]; // length descriptor varint collection
+		for (let i=0; true; i++) {
+			if (i >= this.SEC_LD_BYTE) { return new Error("length descriptor overlength limit " + this.SEC_LD_BYTE); }
+			const varint_byte = this.inputPeek(i);
+			// step() does nothing since the inputQ does not have enough data to form a varint header
+			if (varint_byte === undefined) { return -1; }  
+			ldvi_coll.push(varint_byte);
+			if ((varint_byte & 0x80) === 0) { break; }  // continue out of the loop
+		}
+		const body_len = Number(decode_varint(ldvi_coll));
+		if (body_len > this.SEC_BODY_BYTE) { return new Error("body overlength limit " + this.SEC_BODY_BYTE); }
+		if (this.inputSumLen < (body_len + ldvi_coll.length)) { 
+			// step() does nothing again, inputQ not enough data to form a DataFrame
+			return body_len + ldvi_coll.length - this.inputSumLen; 
+		}  
+		/* Discard return value = */ this.unload(ldvi_coll.length);
+		const payload = this.unload(body_len);
+		return payload;
 	}
 	// assume have enough!
 	private unload(bytes: number): Uint8Array[] {
@@ -123,7 +160,7 @@ function encode_varint(varint: bigint): number[] {
 		buf.push(Number((varint & 0x7Fn) | 0x80n))
 		varint = varint >> 7n
 	}
-	buf[buf.length-1] &= 0x7F;
+	buf[buf.length-1]! &= 0x7F;
 	return buf;
 }
 
@@ -143,42 +180,34 @@ export function total_len(ui8ai: Iterable<Uint8Array>): number {
         return sum_length;
 }
 
-function concat2(a: Uint8Array, b: Uint8Array): Uint8Array {
-	const result = new Uint8Array(a.length + b.length);
-	result.set(a, 0);
-	result.set(b, a.length);
-	return result;
+export function header_of(frameid: bigint, data: Uint8Array): Uint8Array { 
+	const frame_header = encode_varint(frameid).concat(encode_varint(BigInt(data.length)));
+	return new Uint8Array(frame_header);
 }
 
-function concat(i: Uint8Array[]): Uint8Array {
-	if (i.length === 1) { return i[0]!; }
-	const result = new Uint8Array(total_len(i));
-	let bytes_written = 0;
-	for(const buf of i) {
-	    result.set(buf, bytes_written);
-	    bytes_written += buf.length;
-	}
-	return result;
+export function header_of_frag(frameid: bigint, data: Uint8Array[]): Uint8Array { 
+	const frame_header = encode_varint(frameid).concat(encode_varint(BigInt(total_len(data))));
+	return new Uint8Array(frame_header);
 }
 
-export class KisseCore {
-	static* encode(frame: DataFrame): Iterable<Uint8Array> { 
-		const frame_header = encode_varint(frame.frame_id).concat(encode_varint(BigInt(frame.payload.length)));
-		yield new Uint8Array(frame_header);
-		for (const fragment of frame.payload) {
-			if (fragment.length > 0) { yield fragment; }
-		}
+export function delimit_compact_no_rem(buffers: Uint8Array[]): Uint8Array[][] | Error {
+	const dwt = new DecodeWorktable();
+	for (const buf of buffers) {
+		dwt.load(buf)
 	}
-	static* decode(buffers: Iterable<Uint8Array>, sec = {} as SecT): Iterable<DataFrame> {
-		const worktable = new DecodeWorktable(sec);
-		for (const buffer of buffers) {
-			worktable.load(buffer);
-			while (true) { 
-				const produced = worktable.step();
-				if (produced instanceof Error) { throw produced; }
-				if (typeof produced === "number") { break; }
-				yield produced;
-			}
+	const coll = [] as Uint8Array[][];
+	while (true) {
+		if (dwt.len() == 0) {
+			break;
 		}
+		const stepResult = dwt.stepCompact();
+		if (stepResult instanceof Error) {
+			return stepResult;
+		}
+		if (typeof stepResult === "number") {
+			return new Error("incomplete message detected, signal = " + stepResult);
+		}
+		coll.push(stepResult);
 	}
+	return coll;
 }

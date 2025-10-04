@@ -17,9 +17,9 @@ export type Command = {
         options: string[],  // always even number of elements arranged as k-v-k-v-...
 }
 
-const PairIndicator = 3, LineBreak = 4;
-type Token = string | typeof PairIndicator | typeof LineBreak;
-type Token2 = string | typeof PairIndicator;
+const PairIndicator = 3, LineBreak = 4, PositionalModeIndicator = 5;
+type Token = string | typeof PairIndicator | typeof LineBreak | typeof PositionalModeIndicator;
+type Token2 = string | typeof PairIndicator | typeof PositionalModeIndicator;
 // All printable characters on ANSI keyboard, less backtick (`), apos ('), quote ("), and backslash (\).
 const NONQUOTE_CHARSET = "0123456789abcdefghijklmnopqrstuvwxyzABCDFEGHIJKLMNOPQRSTUVWXYZ~!@#$%^&*()-_=+[{]}|;:,<.>/?";
 
@@ -38,7 +38,9 @@ export function tokenizer(src: string): [Error|Token[], number] {
                         coll.push(LineBreak);
                         i += 2;
                 }
-                else if (" \t".includes(cur_ch)) { i += 1; }
+                else if (" \t".includes(cur_ch)) { 
+                        i += 1; 
+                }
                 else if (cur_ch === "-") {
                         const next_ch = src[i+1];
                         if (next_ch === "\"") {
@@ -46,7 +48,8 @@ export function tokenizer(src: string): [Error|Token[], number] {
                                 i += 1;
                         } else if (next_ch && NONQUOTE_CHARSET.includes(next_ch)) {
                                 const [res, new_i] = consume_nonquoted(src, i);
-                                coll.push(PairIndicator, res.substring(1));
+                                if (res === "--") { coll.push(PositionalModeIndicator); } 
+                                else { coll.push(PairIndicator, res.substring(1)); }
                                 str_cannot_begin_at = new_i;
                                 i = new_i;
                         } else if (next_ch === undefined || " \n\r\t".includes(next_ch)) {
@@ -117,6 +120,8 @@ export function parse_one(toks: Token2[]): [Command | Error, number] {
                 if (typeof second !== "string") { return [new Error("malformed token stream 2741"), i]; }
                 command.command = "-" + second;
                 i += 2;
+        } else if (first === PositionalModeIndicator) {
+                command.command = 
         } else {
                 command.command = first!;
                 i += 1;
