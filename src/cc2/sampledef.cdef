@@ -1,102 +1,33 @@
-
-command arsync4 as Arsync {
-    args: decimal[];
-    -i --case-id: string;
-    -n --case-number: string?;
+command arinit {
+	-ns --namespace: string;  // comment is now supported!
 }
 
-
-typescript
-
-// builtin
-type ParsedCommand = {
-    command: string;
-    args: string[];
-    options: string[]; // always even number of elements
+command arsync {
+	-s --session: reserved;
+	-i --case-id: string;
+	-n --case-number: udecimal;
 }
 
-// generated type
-type _Arsync = {
-    args: string[];
-    caseId: string;
-    caseNumber: string|undefined;
+command addrev {
+	-r --revid: udecimal;
+	-t --rev-timestamp: string;
+	-u --uid: udecimal?;
+	-un --uname: flag;
+	-s --summary: string[];
+	-c --content: string;
 }
 
-class Arsync {
-    static parse(pc: ParsedCommand, checkRequired = true): _Arsync | Error {
-        
-        if (pc.command !== "arsync4") { 
-            return new Error("command name mismatch ....");
-        }
-
-        let bArgs: string[] = pc.args;
-        let cArgs = pc.args.length;
-        
-        let bCaseId: string = "";
-        let cCaseId = 0;
-        let bCaseNumber: string|undefined = undefined;
-        let cCaseNumber = 0;
-
-        for (let i=0; i<pc.options.length; i+=2) {
-            swtich (pc.options[i]) {
-            case "-i": case "--case-id":
-                bCaseId = pc.options[i+1];
-                cCaseId += 1;
-            break;
-            case "-n": case "--case-number":
-                bCaseNumber = pc.options[i+1];
-                cCaseNumber += 1;
-            break;
-            default:
-            break;
-            }
-        }
-
-        if (cCaseId == 0) {
-            return new Error("missing field ...");
-        }
-
-        return {
-            args: bArgs,
-            caseId: bCaseId,
-            caseNumber: bCaseNumber,
-        }
-
-    }
+command addpid {
+	args: udecimal;
 }
 
-class Arsync {
-    command = "arsycn4";
-    args: string[] = [];
-    oCaseId: string = "";
-    oCaseNumber: string|undefined = undefined;
-    eCaseId = 0;
-    eCaseNumber = 0;
+command addpc {
+	args: string[];
+}
 
-    static Accept(pc: ParsedCommand, checkRequired = true): Arsync|Error {
-        const instance = new Arsync();
-        if (pc.command != instance.command) { 
-            return new Error(`command string does not match (${instance.command}, ${pc.command})`);
-        }
-        instance.args = pc.args;
-        for (let i=0; i<pc.options.length; i+=2) {
-            swtich (pc.options) {
-            case "-i": case "--case-id":
-                instance.oCaseId = pc.options[i+1];
-                instance.eCaseId += 1;
-            break;
-            case "-n": case "--case-number":
-                instance.oCaseNumber = pc.options[i+1];
-                instance.eCaseNumber += 1;
-            break;
-            default:
-            break;
-            }
-        }
-        if (checkRequired) {
-            if (instance.eCaseId === 0) { return new Error("missing required field caseId"); }
-        }
-        return instance;
-    }
+command arclose {
+	-s --session: reserved;
+	-i --case-id: string;
+	-n --case-number: udecimal;
 }
 
