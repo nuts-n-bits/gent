@@ -1,9 +1,6 @@
-/*
-arinit -ns zhwp
-arsync -session XnDf9Ghep
-addrev -r 398172 -t 2025-03-08T12:29:05Z -u 199272 -un Hinata -s "......" -c "......" 
-rrd -reason RRD#1 -reason RRD#2
-*/
+// This file contains generated code and should not be modified by hand other than when debugging
+// Change the source protocol file (usually with extension .cdef) and re-run codegen to update.
+// BEGIN RUNTIME LIBRARY
 
 export type Command = {
 	command: string, 
@@ -17,7 +14,7 @@ type Token2 = string | typeof QuotationIndicator;
 // All printable characters on ANSI keyboard, less backtick (`), apos ('), quote ("), and backslash (\).
 const NONQUOTE_CHARSET = "0123456789abcdefghijklmnopqrstuvwxyzABCDFEGHIJKLMNOPQRSTUVWXYZ~!@#$%^&*()-_=+[{]}|;:,<.>/?";
 
-export function tokenizer(src: string): [Error|Token[], number] {
+function tokenizer(src: string): [Error|Token[], number] {
 	const coll: Token[] = [];
 	let i = 0;
 	let str_cannot_begin_at = -1;
@@ -28,23 +25,16 @@ export function tokenizer(src: string): [Error|Token[], number] {
 		} else if (cur_ch === "\n") {
 			coll.push(LineBreak);
 			i += 1;
-		}
-		else if (cur_ch === "\r" && src[i+1] === "\n") {
-			coll.push(LineBreak);
-			i += 2;
-		}
-		else if (cur_ch === " " || cur_ch === "\t") { 
+		} else if (cur_ch === "\r" || cur_ch === " " || cur_ch === "\t") { 
 			i += 1; 
-		}
-		else if (cur_ch === "\"") {
+		} else if (cur_ch === "\"") {
 			if (i === str_cannot_begin_at) { return [new Error("quoted string term cannot appear back-to-back with a previous term"), i]; }
 			const [res, new_i] = consume_quoted(src, "\"", i+1);
 			if (res instanceof Error) { return [res, new_i]; }
 			coll.push(QuotationIndicator, res);
 			str_cannot_begin_at = new_i;
 			i = new_i;
-		}
-		else if (NONQUOTE_CHARSET.includes(cur_ch)) {
+		} else if (NONQUOTE_CHARSET.includes(cur_ch)) {
 			if (i === str_cannot_begin_at) { return [new Error("non-quoted string term cannot appear back-to-back with a previous term"), i]; }
 			const [res, new_i] = consume_nonquoted(src, i);
 			coll.push(res);
@@ -60,19 +50,20 @@ function consume_quoted(src: string, delim: string, i: number): [string|Error, n
 	let coll = "";
 	while(true) {
 		const cur = src[i];
-		if (cur === undefined) { return [new Error("unexpected eof while consuming quoted"), i]; }
-		else if (cur === "\\") {
+		if (cur === undefined) { 
+			return [new Error("unexpected eof while consuming quoted"), i]; 
+		} else if (cur === "\\") {
 			if (src[i+1] === "n") { coll += "\n"; i += 2; }
 			else if (src[i+1] === "r") { coll += "\r"; i += 2; }
 			else if (src[i+1] === "\\") { coll += "\\"; i += 2; }
 			else if (src[i+1] === "t") { coll += "\t"; i += 2; }
 			else if (src[i+1] === "\"") { coll += "\""; i += 2; }
-			else if (src[i+1] === "\'") { coll += "\'"; i += 2; }
-			else if (src[i+1] === "\`") { coll += "\`"; i += 2; }
 			else { return [new Error("unexpected escape sequence"), i+1]; }
+		} else if (cur === delim) { 
+			return [coll, i+1]; 
+		} else { 
+			coll += cur; i = i+1; 
 		}
-		else if (cur === delim) { return [coll, i+1]; }
-		else { coll += cur; i = i+1; }
 	}
 }
 
@@ -85,14 +76,9 @@ function consume_nonquoted(src: string, i: number): [string, number] {
 	}
 }
 
-export function parse_one(toks: Token2[]): [Command | Error, number] {
-	const command: Command = {
-		command: "",
-		args: [], 
-		options: [],
-	};
-	let i = 0; 
-	let positionalMode = false;
+function parse_one(toks: Token2[]): [Command | Error, number] {
+	const command: Command = { command: "", args: [],  options: [] };
+	let i = 0, positionalMode = false;
 	const first = toks[i], second = toks[i+1];
 	if (first === QuotationIndicator) {
 		if (typeof second !== "string") { return [new Error("malformed token stream 2745"), i]; }
@@ -148,7 +134,6 @@ export class CcCore {
 		const [tokens, i] = tokenizer(src);
 		if (tokens instanceof Error) { return tokens; }
 		const grouped_toks = group_tok(tokens);
-		if (grouped_toks instanceof Error) { return grouped_toks; }
 		const coll = [] as Command[];
 		for (const grouped of grouped_toks) {
 			const [parsed, i] = parse_one(grouped);
@@ -160,7 +145,7 @@ export class CcCore {
 	static encode(dataline: Command): string {
 		let coll = encode_str(dataline.command);
 		for (const arg of dataline.args) { coll += " " + encode_str(arg); }
-		for (let i = 0; i<dataline.options.length; ) { coll += " -" + encode_str(dataline.options[i]!) + " " + encode_str(dataline.options[i+1] ?? ""); }
+		for (let i = 0; i<dataline.options.length; i+=2) { coll += " " + dataline.options[i]! + " " + encode_str(dataline.options[i+1]!); }
 		return coll;
 	}
 }
@@ -176,3 +161,6 @@ function encode_str(s: string): string {
 	s.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"").replaceAll("\r", "\\r").replaceAll("\n", "\\n");
 	return "\"" + s + "\"";
 }
+
+// BEGIN MACHINE GENERATED CODE
+
