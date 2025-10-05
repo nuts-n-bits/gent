@@ -1,22 +1,10 @@
-# Format Spec
+# Wire Format Spec
 
 
 
-# Parser Spec
+# Proto Format Spec
 
 ## Identifier-like literal
-
-### Explicit command name identifier
-
-Explicit command identifiers must use the following charset:
-* Decimal numbers: 0 ~ 9
-* Upper and lower case letters: A ~ z
-
-Restrictions:
-* It must start with an Uppercase letter.
-
-Normalizing command name to program name: 
-* The explicit identifier is supposed to be a PascalCase program identifier without having to be normalized.
 
 ### Command name
 
@@ -28,26 +16,20 @@ Command names must only use the following charset:
 
 Restrictions:
 * It cannot be empty
-
-In the case where an explicit command name identifier is not specified, an additional restriction applies:
 * It must start with a letter. 
 
 Normalizing command name to program name when explicit identifier not specified: 
 * Convert each dash and underscore to a single space character 0x20
 * Insert a space before each uppercase letter
 * Convert all continuous spaces to a single space, and trim whitespaces left and right
-* Convert the space deliminated fragments to a PascalCase identifier
+* Convert the space deliminated fragments to a PascalCase identifier or snake_case identifier
 
 Examples
 
 ```
-command hello-world as HelloWorld { ... }  // with explicit identifier
-        ~~~~~~~~~~~    ^^^^^^^^^^
-        command name   explicit command name identifier
-
-command hello-world { ... }  // no explicit identifier, but HelloWorld would be inferred.
-
-command foo as Bar { ... }  // explicit identifier can differ from what would be automatically inferred
+command hello-world { ... } 
+        ~~~~~~~~~~~
+        command name  
 ```
 
 ### Short option name

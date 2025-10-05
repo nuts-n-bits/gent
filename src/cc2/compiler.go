@@ -2,7 +2,10 @@ package main
 
 import (
 	_ "embed"
+	"flag"
 	"fmt"
+	"log"
+	"os"
 	"strings"
 	"unicode"
 )
@@ -116,7 +119,6 @@ type AstProgram struct {
 
 type AstCommandBlock struct {
 	commandName Token
-	commandProgramName *Token
 	lineDefs []AstLineDef
 }
 
@@ -181,12 +183,6 @@ func rdParseCommandBlock(tokens []Token, i int) (AstCommandBlock, int, error) {
 		i += 1;
 	} else {
 		return AstCommandBlock{}, i, fmt.Errorf("expected command name while parsing command block");
-	}
-	// consume `as XXX`, optional
-	if tokens[i].kind == TokenKwAs && tokens[i+1].kind == TokenIdentLike {
-		t := tokens[i+1];
-		commandDef.commandProgramName = &t;
-		i += 2;
 	}
 	// consume `{`, or error
 	if tokens[i].kind == TokenOpenBrace {
@@ -322,23 +318,14 @@ func chkProgram(astProgram AstProgram) (ChkProgram, *Token, error) {
 func chkCommandDef(astCommandBlock AstCommandBlock) (ChkCommandDef, *Token, error) {
 	checkedCommandDef := ChkCommandDef{};
 	// populate commandName
-	err := hfCommandNameCheck(astCommandBlock.commandName.data, astCommandBlock.commandProgramName == nil);
+	err := hfCommandNameCheck(astCommandBlock.commandName.data);
 	if err != nil {
 		return ChkCommandDef{}, &astCommandBlock.commandName, err;
 	}
 	checkedCommandDef.commandName = astCommandBlock.commandName.data;
-	// populate progName depending on if explict program name is specified
-	if astCommandBlock.commandProgramName != nil {
-		err := hfCommandProgramNameCheck(astCommandBlock.commandProgramName.data);
-		if err != nil {
-			return ChkCommandDef{}, astCommandBlock.commandProgramName, err;
-		}
-		checkedCommandDef.commandProgName = astCommandBlock.commandProgramName.data;
-		checkedCommandDef.commandProgNameSrcTok = astCommandBlock.commandProgramName;
-	} else {
-		checkedCommandDef.commandProgName = hfNormalizedToPascal(hfNormalizeIdentLike(astCommandBlock.commandName.data));
-		checkedCommandDef.commandProgNameSrcTok = &astCommandBlock.commandName;
-	}
+	// populate progName by transforming commandName
+	checkedCommandDef.commandProgName = hfNormalizedToPascal(hfNormalizeIdentLike(astCommandBlock.commandName.data));
+	checkedCommandDef.commandProgNameSrcTok = &astCommandBlock.commandName;
 	// convert each line inside the block
 	for _, astLineDef := range astCommandBlock.lineDefs {
 		if astLineDef.argsTok != nil {  // this means this line is `args: ...;` ignore shortName, ignore longName
@@ -444,8 +431,18 @@ func chkCommandDef(astCommandBlock AstCommandBlock) (ChkCommandDef, *Token, erro
 
 // typescript (.ts)
 
-//go:embed lib.ts
+//go:embed runtime/lib.ts
 var cgTsLib string;
+
+func cgProgramTypescript(chkProgram ChkProgram, indent string) string {
+	var b strings.Builder;
+	b.WriteString(cgTsLib);
+	for _, chkCommand := range chkProgram.commands {
+		fragment := cgCommandTypescript(chkCommand, indent);
+		b.WriteString(fragment);
+	}
+	return b.String();
+}
 
 func cgCommandTypescript(chkCommand ChkCommandDef, indent string) string {
 	var b strings.Builder;
@@ -453,17 +450,40 @@ func cgCommandTypescript(chkCommand ChkCommandDef, indent string) string {
 		b.WriteString(strings.Repeat(indent, indentCount) + s);
 	}
 	write(0, "type __" + chkCommand.commandProgName + " = {\n");
+	if chkCommand.argExists {
+		typeExpr := hfcgTsType(chkCommand.argBaseType, chkCommand.argModifier);
+		write(1, "args: " + typeExpr + ";\n");
+	}
 	for _, lineDef := range chkCommand.optionDefs {
-		fieldName, typeExpr := hfNormalizedToCamel(lineDef.progName), hfcgTsType(lineDef);
+		if lineDef.isReserved {
+			continue;
+		}
+		fieldName := hfcgTsBannedWordsMangle(hfNormalizedToCamel(lineDef.progName));
+		typeExpr := hfcgTsType(lineDef.baseType, lineDef.modifier);
 		write(1, fieldName + ": " + typeExpr + ";\n");
 	}
 	write(0, "}\n\n");
 
-	write(0, "class " + chkCommand.commandProgName + "{\n");
-	write(1, "static coreParse(pc: ParsedCommand, checkReq = true): __" + chkCommand.commandProgName + "|Error {\n");
+	write(0, "export class " + chkCommand.commandProgName + "{\n");
+	write(1, "static coreParse(pc: Command, checkReq = true): __" + chkCommand.commandProgName + "|Error {\n");
+	if chkCommand.argExists {
+		if chkCommand.argModifier == ModifierOptional && true {
+			write(2, "let bArgs = pc.args[0];\n");
+		} else if chkCommand.argModifier == ModifierRequired {
+			write(2, "if (pc.args[0] === undefined) {\n");
+			write(3, `return new Error("missing required arguments");` + "\n");
+			write(2, "}\n")
+			write(2, "let bArgs = pc.args[0]!;\n");
+		} else {
+			write(2, "let bArgs = pc.args;\n")
+		}
+	}
 	for _, lineDef := range chkCommand.optionDefs {
-		fieldName := hfNormalizedToPascal(lineDef.progName)
-		write(2, "let b" + fieldName + " = " + hfcgTsTypeInitExpr(lineDef) + ";\n");
+		if lineDef.isReserved {
+			continue;
+		}
+		fieldName := hfcgTsBannedWordsMangle(hfNormalizedToPascal(lineDef.progName))
+		write(2, "let b" + fieldName + " = " + hfcgTsTypeInitExpr(lineDef.baseType, lineDef.modifier) + ";\n");
 		write(2, "let c" + fieldName + " = 0;\n");
 	}
 	write(2, `if (pc.command !== "` + chkCommand.commandName + `") {` + "\n");
@@ -473,7 +493,10 @@ func cgCommandTypescript(chkCommand ChkCommandDef, indent string) string {
 	write(2, "for (let i=0; i<pc.options.length; i+=2) {\n");
 	write(3, "switch(pc.options[i]) {\n");
 	for _, lineDef := range chkCommand.optionDefs {
-		fieldName := hfNormalizedToPascal(lineDef.progName);
+		if lineDef.isReserved {
+			continue;
+		}
+		fieldName := hfcgTsBannedWordsMangle(hfNormalizedToPascal(lineDef.progName));
 		write(3, `case "` + lineDef.shortName + `": ` + "\n");
 		if lineDef.longName != "" {
 			write(3, `case "` + lineDef.longName + `": ` + "\n");
@@ -486,8 +509,11 @@ func cgCommandTypescript(chkCommand ChkCommandDef, indent string) string {
 	write(2, "}\n")
 	// end big switch, start checking required fields
 	for _, lineDef := range chkCommand.optionDefs {
+		if lineDef.isReserved {
+			continue;
+		}
 		if lineDef.modifier == ModifierRequired {
-			fieldName := "c" + hfNormalizedToPascal(lineDef.progName);
+			fieldName := "c" + hfcgTsBannedWordsMangle(hfNormalizedToPascal(lineDef.progName));
 			write(2, "if (" + fieldName + " < 1 && checkReq) {\n");
 			write(3, `return new Error("missing field ` + lineDef.shortName + " " + lineDef.longName + `");` + "\n");
 			write(2, "}\n");
@@ -495,18 +521,38 @@ func cgCommandTypescript(chkCommand ChkCommandDef, indent string) string {
 	}
 	// end checking required. begin return
 	write(2, "return {\n");
+	if chkCommand.argExists {
+		write(3, "args: bArgs, \n");
+	}
 	for _, lineDef := range chkCommand.optionDefs {
-		fieldName1, fieldName2 := hfNormalizedToCamel(lineDef.progName), "b" + hfNormalizedToPascal(lineDef.progName);
+		if lineDef.isReserved {
+			continue;
+		}
+		fieldName1 := hfcgTsBannedWordsMangle(hfNormalizedToCamel(lineDef.progName));
+		fieldName2 := "b" + hfcgTsBannedWordsMangle(hfNormalizedToPascal(lineDef.progName));
 		write(3, fieldName1 + ": " + fieldName2 + ",\n");
 	}
 	write(2, "}\n");
 	write(1, "}\n");
-	// end coreParse() function
-	write(1, "static coreEncode(a: __" + chkCommand.commandProgName + "): ParsedCommand {\n");
-	write(2, "const args = [] as string[];\n");
+	// end coreParse() function, begin coreEncode() function
+	write(1, "static coreEncode(a: __" + chkCommand.commandProgName + "): Command {\n");
+	if chkCommand.argExists {
+		if chkCommand.argModifier == ModifierRequired && true {
+			write(2, "const args = [a.args];\n");
+		} else if chkCommand.argModifier == ModifierOptional {
+			write(2, "const args = a.args !== undefined ? [a.args] : [];\n")
+		} else {
+			write(2, "const args = a.args;\n")
+		}
+	} else {
+		write(2, "const args = [] as string[];\n");
+	}
 	write(2, "const options = [] as string[];\n");
 	for _, lineDef := range chkCommand.optionDefs {
-		fieldName := hfNormalizedToCamel(lineDef.progName);
+		if lineDef.isReserved {
+			continue;
+		}
+		fieldName := hfcgTsBannedWordsMangle(hfNormalizedToCamel(lineDef.progName));
 		if lineDef.baseType == BaseTypeFlag {
 			write(2, "if (a." + fieldName + `) { options.push("` + lineDef.shortName + `", ""` + "); }\n")
 		} else if lineDef.modifier == ModifierOptional {
@@ -523,11 +569,25 @@ func cgCommandTypescript(chkCommand ChkCommandDef, indent string) string {
 	write(3, "options: options,\n");
 	write(2, "}\n");
 	write(1, "}\n");
+	write(1, "static write(a: __" + chkCommand.commandProgName + "): string {\n");
+	write(2, "return CcCore.encode(this.coreEncode(a));\n");
+	write(1, "}\n");
+	write(1, "static parse(s: string, checkReq = true): __" + chkCommand.commandProgName + "|Error {\n");
+	write(2, "const e = CcCore.parse(s);\n");
+	write(2, "if (e instanceof Error) { return e; }\n");
+	write(2, "if (e.length !== 1) { return new Error(\"expected exactly 1 command line\"); }\n");
+	write(2, "const f = e[0]!;\n");
+	write(2, "return this.coreParse(f, checkReq);\n");
+	write(1, "}\n");
 	write(0, "}\n\n");
 	return b.String();
 }
 
 // golang (.go)
+
+func cgCommandGolang(chkCommand ChkCommandDef, indent string) string {
+	return "???";
+}
 
 // ocaml (.ml)
 
@@ -535,7 +595,16 @@ func cgCommandTypescript(chkCommand ChkCommandDef, indent string) string {
 
 // java (.java)
 
+// python (.py)
+
+// csharp (.cs)
+
+// fsharp (.fs)
+
+// 
+
 //////// codegen ends ////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
 //////// helper functions ////////////////////////////////////////////////////////
 
@@ -582,14 +651,14 @@ func isAscii0To9(r byte) bool {
 	return r >= '0' && r <= '9';
 }
 
-func hfCommandNameCheck(commandName string, mustStartWithLetter bool) error {
+func hfCommandNameCheck(commandName string) error {
 	if len(commandName) < 1 {
 		return fmt.Errorf("command name cannot be empty");
 	}
 	if pass, b := hfCheckOptionAndCommandNameCharset(commandName); !pass {
 		return fmt.Errorf("command name %s contains disallowed character %c", commandName, b);
 	}
-	if !isAsciiLetter(commandName[0]) && mustStartWithLetter {
+	if !isAsciiLetter(commandName[0]) {
 		return fmt.Errorf("command name %s must start with a letter when no explicit identifier is provided", 
 		commandName);
 	}
@@ -709,10 +778,10 @@ func hfCheckCommandProgramNameCharset(optionName string) (bool, byte) {
 	return true, '0';  // '0' does not matter
 }
 
-func hfcgTsType(lineDef ChkOptionDef) string {
+func hfcgTsType(baseType BaseType, modifier Modifier) string {
 	var t string;
 	var m string;
-	switch lineDef.modifier {
+	switch modifier {
 	case ModifierOptional: 
 		m = "|undefined";
 	case ModifierRequired:
@@ -720,7 +789,7 @@ func hfcgTsType(lineDef ChkOptionDef) string {
 	case ModifierRepeated:
 		m = "[]";
 	}
-	switch lineDef.baseType {
+	switch baseType {
 	case BaseTypeUdecimal, BaseTypeDecimal, BaseTypeString, BaseTypeBase64:
 		t = "string" + m;
 	case BaseTypeFlag:
@@ -731,9 +800,9 @@ func hfcgTsType(lineDef ChkOptionDef) string {
 	return t;
 }
 
-func hfcgTsTypeInitExpr(lineDef ChkOptionDef) string {
+func hfcgTsTypeInitExpr(baseType BaseType, modifier Modifier) string {
 	var zeroVal, typeName string;
-	switch lineDef.baseType {
+	switch baseType {
 	case BaseTypeUdecimal, BaseTypeDecimal, BaseTypeString, BaseTypeBase64:
 		zeroVal = "\"\"";
 		typeName = "string";
@@ -743,7 +812,7 @@ func hfcgTsTypeInitExpr(lineDef ChkOptionDef) string {
 		zeroVal = "\"\"";
 		typeName = "string";
 	}
-	switch lineDef.modifier {
+	switch modifier {
 	case ModifierOptional: 
 		return "undefined as " + typeName + "|undefined";
 	case ModifierRequired:
@@ -766,18 +835,91 @@ func hfcgTsFieldUpdate(lineDef ChkOptionDef) string {
 	}
 }
 
+func hfcgTsBannedWordsMangle(ident string) string {
+	switch ident {
+	case "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do", "else", "enum", "export", "extends",  "false", "finally", "for", "function",  "if", "import", "in", "instanceof",  "new", "null",  "return",  "super", "switch",  "this", "throw", "true", "try", "typeof", "var", "void", "while", "with", "yield":
+		return ident + "_";
+	}
+	return ident;
+}
+
+func hfcgGoBannedWordsMangle(ident string) string {
+	switch ident {
+	case "break", "case", "chan", "const", "continue", "default", "defer", "else", "fallthrough", "for", "func", "go", "goto", "if", "import", "interface", "map", "package", "range", "return", "select", "struct", "switch", "type", "var":
+		return ident + "_";
+	}
+	return ident;
+}
+
+func hfcgMlBannedWordsMangle(ident string) string {
+	switch ident {
+	case "and", "as", "assert", "asr", "begin",  "class", "constraint", "do", "done", "downto", "else", "end", "exception", "external", "false", "for", "fun", "function", "functor", "if", "in", "include", "inherit", "initializer", "land", "lazy", "let", "lor", "lsl", "lsr", "lxor", "match", "method", "mod", "module", "mutable", "new", "nonrec", "object", "of", "open", "or", "private", "rec", "sig", "struct", "then", "to", "true", "try", "type", "val", "virtual", "when", "while", "with":
+		return ident + "_";
+	}
+	return ident;
+}
+
+func hfcgRsBannedWordsMangle(ident string) string {
+	switch ident {
+	case "abstract", "as", "async", "await", "become", "box", "break", "const", "continue", "crate", "do", "dyn", "else", "enum", "extern", "false", "final", "fn", "for", "gen", "if", "impl", "in", "let", "loop", "macro", "match", "mod", "move", "mut", "override", "priv", "pub", "ref", "return",  "Self", "self", "static", "struct", "super", "trait", "true", "try", "type", "typeof", "unsafe", "unsized", "use", "virtual", "where", "while", "yield":
+		return "r#" + ident;
+	}
+	return ident;
+}
+
+func hfcgJavaBannedWordsMangle(ident string) string {
+	switch ident {
+	case "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "const", "continue", "default", "do", "double", "else", "enum", "extends", "final", "finally", "float", "for", "goto", "if", "implements", "import", "instanceof", "int", "interface", "long", "native", "new", "package", "private", "protected", "public", "return", "short", "static", "strictfp", "super", "switch", "synchronized", "this", "throw", "throws", "transient", "try", "void", "volatile", "while", "true", "false", "null":
+		return ident + "_";
+	}
+	return ident;
+}
+
+//////// helper functions end ////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+//////// cli begins //////////////////////////////////////////////////////////////
+
+func readFile() string {
+	data, err := os.ReadFile("example.txt");
+	if err != nil {
+		log.Fatal(err);
+	}
+	return string(data);
+}
+
 func main() {
 
-	
-	norm := hfOptionNameCheck("requireAuth", true)
-	norm2 := hfNormalizeIdentLike("--requireAuth");
-	norm3 := hfNormalizedToPascal(hfNormalizeIdentLike("--requireAuth"));
-	norm4 := hfNormalizedToCamel(hfNormalizeIdentLike("--requireAuth"));
-	norm5 := hfNormalizedToSnake(hfNormalizeIdentLike("--requireAuth"));
+	// Define flags
+	tsOut := flag.String("file", "", "target filename for ts artefact");
+	goOut := flag.String("file", "", "target filename for go artefact");
+	mlOut := flag.String("file", "", "target filename for ocaml artefact");
+	javaOut := flag.String("file", "", "target filename for java artefact");
+	rsOut := flag.String("file", "", "target filename for rust artefact");
+	pyOut := flag.String("file", "", "target filename for python artefact");
+	 := flag.String("file", "", "target filename for python artefact");
 
-	fmt.Printf("%#v, %#v, %#v, %#v, %#v\n\n\n", norm, norm2, norm3, norm4, norm5);
+	verbose := flag.Bool("v", false, "Enable verbose output")
+	count := flag.Int("count", 1, "Number of times to print the file content")
 
-	tokens, err, errI := lexTokenizer(`
+	// Parse the flags
+	flag.Parse()
+
+	fmt.Println("Filename:", *filename)
+	fmt.Println("Verbose:", *verbose)
+	fmt.Println("Count:", *count)
+
+	// Access remaining positional arguments (after flags)
+	fmt.Println("Other args:", flag.Args())
+	// norm := hfOptionNameCheck("requireAuth", true)
+	// norm2 := hfNormalizeIdentLike("--requireAuth");
+	// norm3 := hfNormalizedToPascal(hfNormalizeIdentLike("--requireAuth"));
+	// norm4 := hfNormalizedToCamel(hfNormalizeIdentLike("--requireAuth"));
+	// norm5 := hfNormalizedToSnake(hfNormalizeIdentLike("--requireAuth"));
+
+	// fmt.Printf("%#v, %#v, %#v, %#v, %#v\n\n\n", norm, norm2, norm3, norm4, norm5);
+
+	tokens, _, _ := lexTokenizer(`
 	
 
 command arinit {
@@ -804,31 +946,31 @@ command addpid {
 }
 
 command addpc {
-	args: string;
+	args: string[];
 }
 
-mix arsync-mix {
-	| arsync
-	| 
+command arclose {
+	-s --session: reserved;
+	-i --case-id: string;
+	-n --case-number: udecimal;
 }
-
 
 
 	`);
 
-	fmt.Printf("%#v, %#v, %#v\n\n\n", errI, err, tokens);
+	// fmt.Printf("%#v, %#v, %#v\n\n\n", errI, err, tokens);
 
-	program, errI, err := rdParseProgram(tokens)
+	program, _, _ := rdParseProgram(tokens)
 	
-	fmt.Printf("%#v, %#v, %#v\n\n\n", errI, err, program);
+	// fmt.Printf("%#v, %#v, %#v\n\n\n", errI, err, program);
 
-	checked, errT, err := chkProgram(program);
+	checked, _, _ := chkProgram(program);
 
-	fmt.Printf("%#v, %#v, %#v\n\n\n", errT, err, checked);
+	// fmt.Printf("%#v, %#v, %#v\n\n\n", errT, err, checked);
 
-	tscode := cgCommandTypescript(checked.commands[2], "\t");
+	tscode := cgProgramTypescript(checked, "\t");
 
-	fmt.Printf("%s\n\n\n%s\n\n\n", cgTsLib, tscode);
+	fmt.Printf("%s\n\n\n", tscode);
 
 
 }
