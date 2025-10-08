@@ -875,6 +875,60 @@ func hfcgJavaBannedWordsMangle(ident string) string {
 	return ident;
 }
 
+type ProgramCliParameters struct {
+	tsOut string
+	mlOut string
+	goOut string
+	goPackageName string
+	verb string
+	name string
+	rest []string
+}
+
+func hfcliParseArgs(args []string) ProgramCliParameters {
+	programCliParameters := ProgramCliParameters{};
+	nameFilled, verbFilled := false, false;
+	isOption := func (s string) bool { return len(s) != 0 && s[0] == '-'; }
+	for i:=0; i<len(args); {
+		if i>=len(args) {
+			return programCliParameters;
+		} else if isOption(args[i]) {
+			this := args[i];
+			next := "";
+			if i+1<len(args) && isOption(args[i+1]) {
+				i += 1;
+			} else if i+1<len(args) {
+				next = args[i+1];
+				i += 2;
+			} else {
+				i += 1;
+			}
+			switch this {
+			case "--ts-out": 
+				programCliParameters.tsOut = next;
+			case "--go-out":
+				programCliParameters.goOut = next;
+			case "--go-package-name":
+				programCliParameters.goPackageName = next;
+			case "--ml-out":
+				programCliParameters.mlOut = next;
+			}
+		} else if verbFilled {
+			programCliParameters.rest = append(programCliParameters.rest, args[i]);
+			i += 1;
+		} else if nameFilled {
+			programCliParameters.verb = args[i];
+			verbFilled = true;
+			i += 1;
+		} else {
+			programCliParameters.name = args[i];
+			nameFilled = true;
+			i += 1;
+		}
+	}
+	return programCliParameters;
+}
+
 //////// helper functions end ////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
@@ -890,27 +944,24 @@ func readFile() string {
 
 func main() {
 
-	// Define flags
-	tsOut := flag.String("file", "", "target filename for ts artefact");
-	goOut := flag.String("file", "", "target filename for go artefact");
+	args := hfcliParseArgs(os.Args)
+
+	tsOut := flag.String("ts-out", "", "target filename for ts artefact");
+	goOut := flag.String("go-out", "", "target filename for go artefact");
 	mlOut := flag.String("file", "", "target filename for ocaml artefact");
-	javaOut := flag.String("file", "", "target filename for java artefact");
-	rsOut := flag.String("file", "", "target filename for rust artefact");
-	pyOut := flag.String("file", "", "target filename for python artefact");
-	 := flag.String("file", "", "target filename for python artefact");
-
-	verbose := flag.Bool("v", false, "Enable verbose output")
-	count := flag.Int("count", 1, "Number of times to print the file content")
-
-	// Parse the flags
+	//javaOut := flag.String("file", "", "target filename for java artefact");
+	//rsOut := flag.String("file", "", "target filename for rust artefact");
+	//pyOut := flag.String("file", "", "target filename for python artefact");
 	flag.Parse()
 
-	fmt.Println("Filename:", *filename)
-	fmt.Println("Verbose:", *verbose)
-	fmt.Println("Count:", *count)
+	fmt.Println("--ts-out:", *tsOut);
+	fmt.Println("--go-out:", *goOut);
+	fmt.Println("--ml-out:", *mlOut);
 
-	// Access remaining positional arguments (after flags)
-	fmt.Println("Other args:", flag.Args())
+	fmt.Println("positionals:", flag.Args());
+
+	fmt.Printf("args: %#v", args);
+
 	// norm := hfOptionNameCheck("requireAuth", true)
 	// norm2 := hfNormalizeIdentLike("--requireAuth");
 	// norm3 := hfNormalizedToPascal(hfNormalizeIdentLike("--requireAuth"));
@@ -919,58 +970,58 @@ func main() {
 
 	// fmt.Printf("%#v, %#v, %#v, %#v, %#v\n\n\n", norm, norm2, norm3, norm4, norm5);
 
-	tokens, _, _ := lexTokenizer(`
+// 	tokens, _, _ := lexTokenizer(`
 	
 
-command arinit {
-	-ns --namespace: string;  // comment is now supported!
-}
+// command arinit {
+// 	-ns --namespace: string;  // comment is now supported!
+// }
 
-command arsync {
-	-s --session: reserved;
-	-i --case-id: string;
-	-n --case-number: udecimal;
-}
+// command arsync {
+// 	-s --session: reserved;
+// 	-i --case-id: string;
+// 	-n --case-number: udecimal;
+// }
 
-command addrev {
-	-r --revid: udecimal;
-	-t --rev-timestamp: string;
-	-u --uid: udecimal?;
-	-un --uname: flag;
-	-s --summary: string[];
-	-c --content: string;
-}
+// command addrev {
+// 	-r --revid: udecimal;
+// 	-t --rev-timestamp: string;
+// 	-u --uid: udecimal?;
+// 	-un --uname: flag;
+// 	-s --summary: string[];
+// 	-c --content: string;
+// }
 
-command addpid {
-	args: udecimal;
-}
+// command addpid {
+// 	args: udecimal;
+// }
 
-command addpc {
-	args: string[];
-}
+// command addpc {
+// 	args: string[];
+// }
 
-command arclose {
-	-s --session: reserved;
-	-i --case-id: string;
-	-n --case-number: udecimal;
-}
+// command arclose {
+// 	-s --session: reserved;
+// 	-i --case-id: string;
+// 	-n --case-number: udecimal;
+// }
 
 
-	`);
+// 	`);
 
 	// fmt.Printf("%#v, %#v, %#v\n\n\n", errI, err, tokens);
 
-	program, _, _ := rdParseProgram(tokens)
+	//program, _, _ := rdParseProgram(tokens)
 	
 	// fmt.Printf("%#v, %#v, %#v\n\n\n", errI, err, program);
 
-	checked, _, _ := chkProgram(program);
+	//checked, _, _ := chkProgram(program);
 
 	// fmt.Printf("%#v, %#v, %#v\n\n\n", errT, err, checked);
 
-	tscode := cgProgramTypescript(checked, "\t");
+	//tscode := cgProgramTypescript(checked, "\t");
 
-	fmt.Printf("%s\n\n\n", tscode);
+	//fmt.Printf("%s\n\n\n", tscode);
 
 
 }
