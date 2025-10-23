@@ -4,6 +4,33 @@
 
 # Proto Format Spec
 
+## Example
+
+```
+
+// comments start with two forwrad slashes and continues until the end of line
+
+command name-of-command (string[]) { 
+        -s --long-name: string[];
+}
+
+```
+
+* A proto file consists of a bunch of command blocks
+* A command block starts with keyword `command`, followed by an identifier-like literal `name-of-command`
+* Following the name of command, is a pair of parenthesis () that specifies the argument type.
+  * `command setusername (string) {}` defines a command with name `username` and exactly 1 string argument that follows
+    * A buffer of `setusername hinata` will parse successfully.
+  * `command setemail (string[]) {}` defines a command with name `setemail` and any number of string arguments.
+    * `setemail`, `setemail 1@mail.com` `setemail 1@mail.com 2@mail.com` will all parse.
+  * `command setemail () {}` defines a command that does not accept any arguments
+* Following the (), is the body of the command that defines the options of that command
+  * An option can have many lines, each of them of the form `-s --long: type;`
+  * `-s` is the short name of the command, `--long` is the long name of the command. 
+  * Both are accepted when appearing in the incoming buffer
+  * `setname () { -s --long: string[]; }` defines a repeated string option.
+    * `setname -s foo`, `setname -s foo -s bar`, `setname -s foo --long bar` will all parse.
+
 ## Identifier-like literal
 
 ### Command name

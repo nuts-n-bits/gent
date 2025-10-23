@@ -1,0 +1,43 @@
+command arinit () {
+	-ns --namespace: string;  // comment is now supported!
+}
+
+command arsync () {
+	-s --session: reserved;
+	-i --case-id: string;
+	-n --case-number: udecimal;
+}
+
+command addrev () {
+	-r --revid: udecimal;
+	-t --rev-timestamp: string;
+	-u --uid: udecimal;
+	-un --uname: string;
+	-s --summary: string;
+	-c --content: string;
+}
+
+command addpid (string) {}
+
+command addpc (string) {}
+
+command arclose (string) {
+	-s --session: reserved;
+	-i --case-id: string;
+	-n --case-number: udecimal;
+}
+
+mix upload-1 {
+	arinit;
+}
+
+mix upload-2 {
+	arsync;
+	addrev[];
+	addpid[];
+	addpc[];
+}
+
+mix upload-3 {
+	arclose;
+}

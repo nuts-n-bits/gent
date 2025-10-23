@@ -1,14 +1,14 @@
-command arinit {
+command arinit () {
 	-ns --namespace: string;  // comment is now supported!
 }
 
-command arsync {
+command arsync () {
 	-s --session: reserved;
 	-i --case-id: string;
 	-n --case-number: udecimal;
 }
 
-command addrev {
+command addrev () {
 	-r --revid: udecimal;
 	-t --rev-timestamp: string;
 	-u --uid: udecimal?;
@@ -17,17 +17,22 @@ command addrev {
 	-c --content: string;
 }
 
-command addpid {
-	args: udecimal;
+command addpid (string?) {
 }
 
-command addpc {
-	args: string[];
+command addpc (string[]) {
 }
 
-command arclose {
+command arclose (string) {
 	-s --session: reserved;
 	-i --case-id: string;
 	-n --case-number: udecimal;
 }
 
+mix arupload-mix {
+	arinit?;
+	arsync;
+	addrev[];
+	addpid[];
+	addpc[];
+}

@@ -8,14 +8,14 @@ export type Command = {
 	options: string[],  // always even number of elements arranged as (k, v, k, v, ...)
 }
 
-const LineBreak = 4, QuotationIndicator = 5;
-type Token = string | typeof QuotationIndicator | typeof LineBreak;
-type Token2 = string | typeof QuotationIndicator;
+const _LineBreak = 4, _QuotationIndicator = 5;
+type _Token = string | typeof _QuotationIndicator | typeof _LineBreak;
+type _Token2 = string | typeof _QuotationIndicator;
 // All printable characters on ANSI keyboard, less backtick (`), apos ('), quote ("), and backslash (\).
-const NONQUOTE_CHARSET = "0123456789abcdefghijklmnopqrstuvwxyzABCDFEGHIJKLMNOPQRSTUVWXYZ~!@#$%^&*()-_=+[{]}|;:,<.>/?";
+const _NONQUOTE_CHARSET = "0123456789abcdefghijklmnopqrstuvwxyzABCDFEGHIJKLMNOPQRSTUVWXYZ~!@#$%^&*()-_=+[{]}|;:,<.>/?";
 
-function tokenizer(src: string): [Error|Token[], number] {
-	const coll: Token[] = [];
+function _tokenizer(src: string): [Error|_Token[], number] {
+	const coll: _Token[] = [];
 	let i = 0;
 	let str_cannot_begin_at = -1;
 	while (true) {
@@ -23,20 +23,20 @@ function tokenizer(src: string): [Error|Token[], number] {
 		if (cur_ch === undefined) { 
 			return [coll, 0]; 
 		} else if (cur_ch === "\n") {
-			coll.push(LineBreak);
+			coll.push(_LineBreak);
 			i += 1;
 		} else if (cur_ch === "\r" || cur_ch === " " || cur_ch === "\t") { 
 			i += 1; 
 		} else if (cur_ch === "\"") {
 			if (i === str_cannot_begin_at) { return [new Error("quoted string term cannot appear back-to-back with a previous term"), i]; }
-			const [res, new_i] = consume_quoted(src, "\"", i+1);
+			const [res, new_i] = _consume_quoted(src, "\"", i+1);
 			if (res instanceof Error) { return [res, new_i]; }
-			coll.push(QuotationIndicator, res);
+			coll.push(_QuotationIndicator, res);
 			str_cannot_begin_at = new_i;
 			i = new_i;
-		} else if (NONQUOTE_CHARSET.includes(cur_ch)) {
+		} else if (_NONQUOTE_CHARSET.includes(cur_ch)) {
 			if (i === str_cannot_begin_at) { return [new Error("non-quoted string term cannot appear back-to-back with a previous term"), i]; }
-			const [res, new_i] = consume_nonquoted(src, i);
+			const [res, new_i] = _consume_nonquoted(src, i);
 			coll.push(res);
 			str_cannot_begin_at = new_i;
 			i = new_i;
@@ -46,7 +46,7 @@ function tokenizer(src: string): [Error|Token[], number] {
 	}
 }
 
-function consume_quoted(src: string, delim: string, i: number): [string|Error, number] {
+function _consume_quoted(src: string, delim: string, i: number): [string|Error, number] {
 	let coll = "";
 	while(true) {
 		const cur = src[i];
@@ -67,20 +67,20 @@ function consume_quoted(src: string, delim: string, i: number): [string|Error, n
 	}
 }
 
-function consume_nonquoted(src: string, i: number): [string, number] {
+function _consume_nonquoted(src: string, i: number): [string, number] {
 	let coll = "";
 	while (true) {
 		const cur = src[i];
-		if (cur !== undefined && NONQUOTE_CHARSET.includes(cur)) { coll += cur; i = i+1; }
+		if (cur !== undefined && _NONQUOTE_CHARSET.includes(cur)) { coll += cur; i = i+1; }
 		else { return [coll, i]; }
 	}
 }
 
-function parse_one(toks: Token2[]): [Command | Error, number] {
+function _parse_one(toks: _Token2[]): [Command | Error, number] {
 	const command: Command = { command: "", args: [],  options: [] };
 	let i = 0, positionalMode = false;
 	const first = toks[i], second = toks[i+1];
-	if (first === QuotationIndicator) {
+	if (first === _QuotationIndicator) {
 		if (typeof second !== "string") { return [new Error("malformed token stream 2745"), i]; }
 		command.command = second;
 		i += 2;
@@ -95,7 +95,7 @@ function parse_one(toks: Token2[]): [Command | Error, number] {
 		const next1 = toks[i+1];
 		if (cur === undefined) {
 			return [command, i+1];
-		} else if (cur === QuotationIndicator) {
+		} else if (cur === _QuotationIndicator) {
 			if (typeof next1 !== "string") { return [new Error("malformed tokenstream 2524"), i]; }
 			command.args.push(next1);
 			i += 2;
@@ -105,7 +105,7 @@ function parse_one(toks: Token2[]): [Command | Error, number] {
 		} else if (cur === "--") {
 			positionalMode = true;
 			i += 1;
-		} else if (next1 === QuotationIndicator) {
+		} else if (next1 === _QuotationIndicator) {
 			const next2 = toks[i+2];
 			if (typeof next2 !== "string") { return [new Error("malformed token stream 4991"), i]; }
 			command.options.push(cur, next2);
@@ -120,10 +120,10 @@ function parse_one(toks: Token2[]): [Command | Error, number] {
 	}
 }
 
-function group_tok(toks: Token[]): Token2[][] {
-	const coll: Token2[][] = [[]];
+function _group_tok(toks: _Token[]): _Token2[][] {
+	const coll: _Token2[][] = [[]];
 	for (const tok of toks) {
-		if (tok === LineBreak) { coll.push([]); }
+		if (tok === _LineBreak) { coll.push([]); }
 		else { coll[coll.length-1]!.push(tok); }
 	}
 	return coll.filter(a => a.length > 0);
@@ -131,32 +131,38 @@ function group_tok(toks: Token[]): Token2[][] {
 
 export class CcCore {
 	static parse(src: string): Command[] | Error {
-		const [tokens, i] = tokenizer(src);
+		const [tokens, i] = _tokenizer(src);
 		if (tokens instanceof Error) { return tokens; }
-		const grouped_toks = group_tok(tokens);
+		const grouped_toks = _group_tok(tokens);
 		const coll = [] as Command[];
 		for (const grouped of grouped_toks) {
-			const [parsed, i] = parse_one(grouped);
+			const [parsed, i] = _parse_one(grouped);
 			if (parsed instanceof Error) { return parsed; }
 			coll.push(parsed);
 		}
 		return coll;
 	}
 	static encode(dataline: Command): string {
-		let coll = encode_str(dataline.command);
-		for (const arg of dataline.args) { coll += " " + encode_str(arg); }
-		for (let i = 0; i<dataline.options.length; i+=2) { coll += " " + dataline.options[i]! + " " + encode_str(dataline.options[i+1]!); }
+		let coll = _encode_str(dataline.command);
+		for (const arg of dataline.args) { coll += " " + _encode_str(arg); }
+		if (dataline.options.length % 2 !== 0) { dataline.options.push(""); }
+		for (let i = 0; i<dataline.options.length; i+=2) { 
+			coll += " " + dataline.options[i]!
+			if (dataline.options[i+1] !== "") {
+				coll += " " + _encode_str(dataline.options[i+1]!);
+			}
+		}
 		return coll;
 	}
 }
 
-function nqtest(tested: string): boolean {
-	for (const ch of tested) { if (!NONQUOTE_CHARSET.includes(ch)) { return false; } }
+function _nqtest(tested: string): boolean {
+	for (const ch of tested) { if (!_NONQUOTE_CHARSET.includes(ch)) { return false; } }
 	return true;
 }
 
-function encode_str(s: string): string {
-	const noneed_quote = s.length > 0 && s.length < 50 && s[0] !== "-" && nqtest(s);
+function _encode_str(s: string): string {
+	const noneed_quote = s.length > 0 && s.length < 50 && s[0] !== "-" && _nqtest(s);
 	if (noneed_quote) { return s; }
 	s.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"").replaceAll("\r", "\\r").replaceAll("\n", "\\n");
 	return "\"" + s + "\"";

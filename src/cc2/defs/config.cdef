@@ -1,0 +1,123 @@
+command token(string) {}
+command proxy(string) { -enable: flag }
+command record(string) {}
+command groups(decimal[]) {}
+command log_channel(string) {}
+command main_site(string) {}
+command oauth_auth_url(string) {}
+command oauth_query_url(string) {}
+command oauth_query_key(string) {}
+command wiki_list(string[]) {}
+command blacklist(string[]) {}
+command message-start(string) {}
+command message-policy(string) {}
+command message-insufficient_right(string) {}
+command message-general_prompt(string) {}
+command message-telegram_id_error(string) {}
+command message-restore_silence(string) {}
+command message-confirm_already(string) {}
+command message-confirm_other_tg(string) {}
+command message-confirm_conflict(string) {}
+command message-confirm_checking(string) {}
+command message-confirm_user_not_found(string) {}
+command message-confirm_button(string) {}
+command message-confirm_wait(string) {}
+command message-confirm_confirming(string) {}
+command message-confirm_ineligible(string) {}
+command message-confirm_session_lost(string) {}
+command message-confirm_complete(string) {}
+command message-confirm_failed(string) {}
+command message-confirm_log(string) {}
+command message-deconfirm_prompt(string) {}
+command message-deconfirm_button(string) {}
+command message-deconfirm_succ(string) {}
+command message-deconfirm_not_confirmed(string) {}
+command message-deconfirm_log(string) {}
+command message-new_member_hint(string) {}
+command message-add_whitelist_prompt(string) {}
+command message-add_whitelist_succ(string) {}
+command message-add_whitelist_log(string) {}
+command message-remove_whitelist_prompt(string) {}
+command message-remove_whitelist_not_found(string) {}
+command message-remove_whitelist_log(string) {}
+command message-remove_whitelist_succ(string) {}
+command message-whois_head(string) {}
+command message-whois_prompt(string) {}
+command message-whois_not_found(string) {}
+command message-whois_self(string) {}
+command message-whois_bot(string) {}
+command message-whois_has_mw(string) {}
+command message-whois_no_mw(string) {}
+command message-whois_whitelisted(string) {}
+command message-whois_tg_name_unavailable(string) {}
+command message-refuse_log(string) {}
+command message-accept_log(string) {}
+command message-lift_restriction_alert(string) {}
+command message-silence_alert(string) {}
+command message-enable(string) {}
+command message-disable(string) {}
+command message-enable_log(string) {}
+command message-disable_log(string) {}
+
+mix config-mix {
+    token;
+    proxy;
+    record;
+    groups;
+    log_channel;
+    main_site;
+    oauth_auth_url;
+    oauth_query_url;
+    oauth_query_key;
+    wiki_list;
+    blacklist;
+    message-start;
+    message-policy;
+    message-insufficient_right;
+    message-general_prompt;
+    message-telegram_id_error;
+    message-restore_silence;
+    message-confirm_already;
+    message-confirm_other_tg;
+    message-confirm_conflict;
+    message-confirm_checking;
+    message-confirm_user_not_found;
+    message-confirm_button;
+    message-confirm_wait;
+    message-confirm_confirming;
+    message-confirm_ineligible;
+    message-confirm_session_lost;
+    message-confirm_complete;
+    message-confirm_failed;
+    message-confirm_log;
+    message-deconfirm_prompt;
+    message-deconfirm_button;
+    message-deconfirm_succ;
+    message-deconfirm_not_confirmed;
+    message-deconfirm_log;
+    message-new_member_hint;
+    message-add_whitelist_prompt;
+    message-add_whitelist_succ;
+    message-add_whitelist_log;
+    message-remove_whitelist_prompt;
+    message-remove_whitelist_not_found;
+    message-remove_whitelist_log;
+    message-remove_whitelist_succ;
+    message-whois_head;
+    message-whois_prompt;
+    message-whois_not_found;
+    message-whois_self;
+    message-whois_bot;
+    message-whois_has_mw;
+    message-whois_no_mw;
+    message-whois_whitelisted;
+    message-whois_tg_name_unavailable;
+    message-refuse_log;
+    message-accept_log;
+    message-lift_restriction_alert;
+    message-silence_alert;
+    message-enable;
+    message-disable;
+    message-enable_log;
+    message-disable_log;
+}

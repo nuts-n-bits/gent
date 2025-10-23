@@ -1,4 +1,6 @@
-package goPackageNamePlaceholder
+// BEGIN RUNTIME LIBRARY
+
+package RUNTIME_PLACEHOLDER_PEMCJQNAENRICMQR
 
 import (
 	"fmt"
@@ -12,65 +14,69 @@ type Command struct {
 	options []string // always even number of elements arranged as (k, v, k, v, ...)
 }
 
-type TokenKind int
+type _TokenKind int
 
 const (
-	TokenNonQuotedString TokenKind = iota
-	TokenQuotedString
-	TokenLineBreak
+	_TokenNonQuotedString _TokenKind = iota
+	_TokenQuotedString
+	_TokenLineBreak
 )
 
-type Token struct {
+type _Token struct {
 	data string
-	kind TokenKind
+	kind _TokenKind
 }
 
 // All printable characters on ANSI keyboard, less backtick (`), apos ('), quote ("), and backslash (\).
-var NONQUOTE_CHARSET = []byte("0123456789abcdefghijklmnopqrstuvwxyzABCDFEGHIJKLMNOPQRSTUVWXYZ~!@#$%^&*()-_=+[{]}|;:,<.>/?");
+var _NONQUOTE_CHARSET = []byte("0123456789abcdefghijklmnopqrstuvwxyzABCDFEGHIJKLMNOPQRSTUVWXYZ~!@#$%^&*()-_=+[{]}|;:,<.>/?");
 
-func tokenizer(src string) ([][]Token, int, error) {
-	coll := [][]Token{};
-	cur := []Token{};
+func _tokenizer(src string) ([][]_Token, int, error) {
+	coll := [][]_Token{};
+	cur := []_Token{};
 	i := 0;
 	strCannotBeginAt := -1;
 	for {
 		if i >= len(src) {
+			if len(cur) > 0 {
+				coll = append(coll, cur);
+				cur = []_Token{};
+			}
 			return coll, i, nil;
 		} else if src[i] == '\n' {
 			if len(cur) > 0 {
 				coll = append(coll, cur);
-				cur = []Token{};
+				cur = []_Token{};
 			}
 			i += 1;
 		} else if src[i] == '\r' || src[i] == '\t' || src[i] == ' ' {
 			i += 1;
 		} else if src[i] == '"' {
 			if i == strCannotBeginAt { 
-				return [][]Token{}, i, fmt.Errorf("quoted string term cannot appear back-to-back with a previous term"); 
+				return [][]_Token{}, i, fmt.Errorf("quoted string term cannot appear back-to-back with a previous term"); 
 			}
-			str, newI, err := consumeQuoted(src, '"', i+1);
+			str, newI, err := _consumeQuoted(src, '"', i+1);
 			if err != nil { 
-				return [][]Token{}, newI, err; 
+				return [][]_Token{}, newI, err; 
 			}
-			cur = append(cur, Token{ data: str, kind: TokenQuotedString });
+			cur = append(cur, _Token{ data: str, kind: _TokenQuotedString });
 			strCannotBeginAt = newI;
 			i = newI;
-		} else if slices.Contains(NONQUOTE_CHARSET, src[i]) {
+		} else if slices.Contains(_NONQUOTE_CHARSET, src[i]) {
 			if i == strCannotBeginAt { 
-				return [][]Token{}, i, fmt.Errorf("non-quoted string term cannot appear back-to-back with a previous term"); 
+				return [][]_Token{}, i, fmt.Errorf("non-quoted string term cannot appear back-to-back with a previous term"); 
 			}
 
-			str, newI := consumeNonquoted(src, i);
-			cur = append(cur, Token{ data: str, kind: TokenNonQuotedString} );
+			str, newI := _consumeNonquoted(src, i);
+			cur = append(cur, _Token{ data: str, kind: _TokenNonQuotedString} );
 			strCannotBeginAt = newI;
 			i = newI;
 		} else {
-			return [][]Token{}, i, fmt.Errorf("unexpected character");
+			return [][]_Token{}, i, fmt.Errorf("unexpected character");
 		}
 	}
 }
 
-func consumeQuoted(src string, delim byte, i int) (string, int, error) {
+func _consumeQuoted(src string, delim byte, i int) (string, int, error) {
 	var b strings.Builder;
 	for {
 		if i >= len(src) { 
@@ -107,11 +113,11 @@ func consumeQuoted(src string, delim byte, i int) (string, int, error) {
 	}
 }
 
-func consumeNonquoted(src string, i int) (string, int) {
+func _consumeNonquoted(src string, i int) (string, int) {
 	var b strings.Builder;
 	for {
 
-		if i < len(src) && slices.Contains(NONQUOTE_CHARSET, src[i]) { 
+		if i < len(src) && slices.Contains(_NONQUOTE_CHARSET, src[i]) { 
 			b.WriteByte(src[i]);
 			i = i+1; 
 		} else { 
@@ -120,17 +126,18 @@ func consumeNonquoted(src string, i int) (string, int) {
 	}
 }
 
-func parseOne(toks []Token) (Command, int, error) {
+func _parseOne(toks []_Token) (Command, int, error) {
 	command, i, positionalMode := Command{}, 0, false;
 	if len(toks) == 0 {
 		return Command{}, i, fmt.Errorf("empty token stream");
 	} else {
 		command.command = toks[i].data;
+		i += 1;
 	}
 	for {
 		if i >= len(toks) {
 			return command, i, nil;
-		} else if toks[i].kind == TokenQuotedString {
+		} else if toks[i].kind == _TokenQuotedString {
 			command.args = append(command.args, toks[i].data);
 			i += 1;
 		} else if toks[i].data[0] != '-' || positionalMode {
@@ -139,7 +146,7 @@ func parseOne(toks []Token) (Command, int, error) {
 		} else if toks[i].data == "--" {
 			positionalMode = true;
 			i += 1;
-		} else if i+1 >= len(toks) || (toks[i+1].kind == TokenNonQuotedString && toks[i+1].data[0] == '-') {
+		} else if i+1 >= len(toks) || (toks[i+1].kind == _TokenNonQuotedString && toks[i+1].data[0] == '-') {
 			command.options = append(command.options, toks[i].data, "");
 			i += 1;
 		} else {
@@ -149,14 +156,18 @@ func parseOne(toks []Token) (Command, int, error) {
 	}
 }
 
-func CoreDynParse(src string) ([]Command, int, error) {
-	tokenss, i, err := tokenizer(src);
+type _ccCore struct {}
+
+var CcCore = _ccCore{};
+
+func (_ _ccCore) CoreDynParse(src string) ([]Command, int, error) {
+	tokenss, i, err := _tokenizer(src);
 	coll := []Command{};
 	if err != nil {
 		return []Command{}, i, err;
 	}
 	for _, tokens := range tokenss {
-		command, _, err := parseOne(tokens);
+		command, _, err := _parseOne(tokens);
 		if err != nil {
 			return []Command{}, 0, err;
 		}
@@ -165,36 +176,42 @@ func CoreDynParse(src string) ([]Command, int, error) {
 	return coll, 0, nil;
 }
 
-func CoreDynEncode(cmd Command) string {
+func (_ _ccCore) CoreDynEncode(cmd Command) string {
 	var b strings.Builder;
-	b.WriteString(encodeStr(cmd.command));
+	b.WriteString(_encodeStr(cmd.command));
 	for _, arg := range cmd.args {
 		b.WriteString(" ");
-		b.WriteString(encodeStr(arg));
+		b.WriteString(_encodeStr(arg));
+	}
+	if len(cmd.options) % 2 != 0 {
+		cmd.options = append(cmd.options, "");
 	}
 	for i:=0; i<len(cmd.options); i+=2 {
 		b.WriteString(" ");
 		b.WriteString(cmd.options[i]);
-		b.WriteString(" ");
-		b.WriteString(cmd.options[i+1]);
+		if cmd.options[i+1] != "" {
+			b.WriteString(" ");
+			b.WriteString(_encodeStr(cmd.options[i+1]));
+		}
 	}
 	return b.String();
 }
 
-func nqtest(tested string) bool {
+func _nqtest(tested string) bool {
 	for _, byte := range []byte(tested) {
-		if !slices.Contains(NONQUOTE_CHARSET, byte) { 
+		if !slices.Contains(_NONQUOTE_CHARSET, byte) { 
 			return false; 
 		}
 	}
 	return true;
 }
 
-func encodeStr(s string) string {
-	if len(s) > 0 && len(s) < 50 && s[0]!= '-' && nqtest(s) {
+func _encodeStr(s string) string {
+	if len(s) > 0 && len(s) < 50 && s[0]!= '-' && _nqtest(s) {
 		return s;
 	}
 	t := strings.ReplaceAll(strings.ReplaceAll(s, "\\", "\\\\"), "\"", "\\\"");
 	return "\"" + strings.ReplaceAll(strings.ReplaceAll(t, "\r", "\\r"), "\n", "\\n") + "\"";
 }
 
+// BEGIN MACHINE GENERATED CODE
