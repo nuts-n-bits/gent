@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 /*
 RULES
@@ -60,11 +63,11 @@ type LcTopLevelType struct {
 }
 
 type LcTypeExpr struct {
-	OneofMintedIdent *string     `json:"mintedIdent,omitempty"`
-	OneofTokenIdent  *Token      `json:"TokenIdent,omitempty"`
+	OneofMintedIdent *string      `json:"mintedIdent,omitempty"`
+	OneofTokenIdent  *Token       `json:"TokenIdent,omitempty"`
 	OneofBuiltin     *BuiltinType `json:"builtin,omitempty"`
-	OneofImported    *LcImported `json:"imported,omitempty"`
-	OneofListof      *LcTypeExpr `json:"listOf,omitempty"`
+	OneofImported    *LcImported  `json:"imported,omitempty"`
+	OneofListof      *LcTypeExpr  `json:"listOf,omitempty"`
 }
 
 type LcImported struct {
@@ -80,7 +83,24 @@ type LcStructOrEnumLine struct {
 	IsReserved bool       `json:"isReserved"`
 }
 
-func lcCheckProgram(fltProgram FltProgram) (
+func lcCheckProgram1Of2(fltProgram FltProgram) (*Token, error) {
+	return lcCheckTopLevelReservedName(fltProgram.TopLevelTypedefs)
+}
+
+func lcCheckTopLevelReservedName(a []FltTopLevelType) (*Token, error) {
+	for _, e := range a {
+		if e.Oneof01TopLevelName != nil {
+			identCheck := strings.ToLower(hfNormalizedToCamel(hfNormalizeIdent(e.Oneof01TopLevelName.Data)))
+			if strings.HasPrefix(identCheck, "csres0") {
+				return e.Oneof01TopLevelName,
+					fmt.Errorf("Identifiers cannot begin with `csres0` as it is reserved. This rule is case insensitive.")
+			}
+		}
+	}
+	return nil, nil
+}
+
+func lcCheckProgram2Of2(fltProgram FltProgram) (
 	lcProg LcProgram, topLevelCollision []LcErrorTokenCollision, undefToks []Token,
 ) {
 	tokenCollisions := []LcErrorTokenCollision{}
@@ -164,7 +184,7 @@ func lcCheckReferenceExistInner(fltType LcTypeExpr, undefToks *[]Token, lcProgra
 		if _, has := lcProgram.TopLevelDefs[normPascal]; !has {
 			*undefToks = append(*undefToks, *fltType.OneofTokenIdent)
 		}
-	} else if fltType.OneofBuiltin != nil { 
+	} else if fltType.OneofBuiltin != nil {
 		// nothing to check
 	} else if fltType.OneofImported != nil {
 		if _, has := lcProgram.Imports[fltType.OneofImported.ImportedIdent.Data]; !has {

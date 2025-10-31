@@ -55,7 +55,7 @@ var ctr int = 0
 func counter() string {
 	ret := strconv.Itoa(ctr)
 	ctr += 1
-	return "csres0" + ret
+	return "Csres0" + ret
 }
 
 func fltFlattenProgram(astProgram AstProgram) (ret FltProgram) {

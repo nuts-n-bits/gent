@@ -1,4 +1,4 @@
-type A = {
+type something_something = {
     s session?: string,
     t timestamp: enum {
         i isoTimestamp: [string, i64],

@@ -196,7 +196,11 @@ func show_lc(args ProgramCliParameters) {
 	fmt.Printf("\n\n\nAST\n%s", program.DebugString())
 	programFlt := fltFlattenProgram(program)
 	fmt.Printf("\n\n\nFLT\n%s", programFlt.DebugString())
-	programLc, topLevelCollisions, undefinedRefs := lcCheckProgram(programFlt)
+	errT, err := lcCheckProgram1Of2(programFlt)
+	if err != nil {
+		log.Fatalf("ERR: %s (at %#v)", err.Error(), errT)
+	}
+	programLc, topLevelCollisions, undefinedRefs := lcCheckProgram2Of2(programFlt)
 	if len(topLevelCollisions) > 0 || len(undefinedRefs) > 0 {
 		if len(topLevelCollisions) > 0 {
 			log.Printf("\n\nDetected %d duplicate identifiers: %#v\n", len(topLevelCollisions), topLevelCollisions)
