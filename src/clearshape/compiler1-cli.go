@@ -142,7 +142,7 @@ func show_ast(args ProgramCliParameters) {
 	if err != nil {
 		log.Fatalf("ERR: %s (at %#v)", err.Error(), tokens[errI])
 	}
-	fmt.Printf("TOK\n%#v", tokens);
+	fmt.Printf("TOK\n%#v", tokens)
 	program, errI, err := rdParseProgram(tokens)
 	if err != nil {
 		log.Fatalf("ERR: %s (at %#v)", err.Error(), tokens[errI])
@@ -164,14 +164,49 @@ func show_flt(args ProgramCliParameters) {
 	if err != nil {
 		log.Fatalf("ERR: %s (at %#v)", err.Error(), tokens[errI])
 	}
-	fmt.Printf("TOK\n%#v", tokens);
+	fmt.Printf("TOK\n%#v", tokens)
 	program, errI, err := rdParseProgram(tokens)
 	if err != nil {
 		log.Fatalf("ERR: %s (at %#v)", err.Error(), tokens[errI])
 	}
 	fmt.Printf("\n\n\nAST\n%s", program.DebugString())
-	programFlt := fltFlattenProgram(program);
+	programFlt := fltFlattenProgram(program)
 	fmt.Printf("\n\n\nFLT\n%s", programFlt.DebugString())
+}
+
+func show_lc(args ProgramCliParameters) {
+	if len(args.rest) == 0 {
+		log.Fatal("ERR: No input file")
+	} else if len(args.rest) > 1 {
+		log.Fatal("ERR: Multiple input file")
+	}
+	programStr, err := readFile(args.rest[0])
+	if err != nil {
+		log.Fatalf("ERR: %s", err.Error())
+	}
+	tokens, err, errI := lexTokenizer(programStr)
+	if err != nil {
+		log.Fatalf("ERR: %s (at %#v)", err.Error(), tokens[errI])
+	}
+	fmt.Printf("TOK\n%#v", tokens)
+	program, errI, err := rdParseProgram(tokens)
+	if err != nil {
+		log.Fatalf("ERR: %s (at %#v)", err.Error(), tokens[errI])
+	}
+	fmt.Printf("\n\n\nAST\n%s", program.DebugString())
+	programFlt := fltFlattenProgram(program)
+	fmt.Printf("\n\n\nFLT\n%s", programFlt.DebugString())
+	programLc, topLevelCollisions, undefinedRefs := lcCheckProgram(programFlt)
+	if len(topLevelCollisions) > 0 || len(undefinedRefs) > 0 {
+		if len(topLevelCollisions) > 0 {
+			log.Printf("\n\nDetected %d duplicate identifiers: %#v\n", len(topLevelCollisions), topLevelCollisions)
+		}
+		if len(undefinedRefs) > 0 {
+			log.Printf("\n\nDetected %d undefined references: %#v\n", len(undefinedRefs), undefinedRefs)
+		}
+		log.Fatalf("exiting due to previous error(s)")
+	}
+	fmt.Printf("\n\n\nLC\n%s", programLc.DebugString());
 }
 
 func main() {
@@ -187,5 +222,7 @@ func main() {
 		show_ast(args)
 	} else if args.verb == "show-flt" {
 		show_flt(args)
+	} else if args.verb == "show-lc" {
+		show_lc(args)
 	}
 }

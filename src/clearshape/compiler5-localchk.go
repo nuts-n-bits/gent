@@ -24,6 +24,25 @@ const (
 	BuiltinTypeNull    BuiltinType = "BuiltinTypeNull"
 )
 
+func LcIsBuiltIn(s string) (BuiltinType, bool) {
+	switch s {
+	case "string":
+		return BuiltinTypeString, true
+	case "u64":
+		return BuiltinTypeUint64, true
+	case "i64":
+		return BuiltinTypeInt64, true
+	case "f64":
+		return BuiltinTypeFloat64, true
+	case "boolean":
+		return BuiltinTypeBoolean, true
+	case "null":
+		return BuiltinTypeNull, true
+	default:
+		return BuiltinTypeString, false
+	}
+}
+
 type LcProgram struct {
 	// Imports is keyed by ident string without normalization
 	Imports      map[string]AstImport      `json:"imports"`      // these imports should not be normalized
@@ -35,6 +54,7 @@ type LcTopLevelType struct {
 	OneofTopLevelEnum   *[]LcStructOrEnumLine `json:"topLevelEnum,omitempty"`
 	OneofTopLevelTuple  *[]LcTypeExpr         `json:"topLevelTuple,omitempty"`
 	OneofTokenIdent     *Token                `json:"tokenIdent,omitempty"`
+	OneofBuiltin        *BuiltinType          `json:"builtin,omitempty"`
 	OneofListof         *LcTypeExpr           `json:"listOf,omitempty"`
 	OneofImported       *LcImported           `json:"imported,omitempty"`
 }
@@ -42,6 +62,7 @@ type LcTopLevelType struct {
 type LcTypeExpr struct {
 	OneofMintedIdent *string     `json:"mintedIdent,omitempty"`
 	OneofTokenIdent  *Token      `json:"TokenIdent,omitempty"`
+	OneofBuiltin     *BuiltinType `json:"builtin,omitempty"`
 	OneofImported    *LcImported `json:"imported,omitempty"`
 	OneofListof      *LcTypeExpr `json:"listOf,omitempty"`
 }
@@ -59,7 +80,9 @@ type LcStructOrEnumLine struct {
 	IsReserved bool       `json:"isReserved"`
 }
 
-func lcCheckProgram(fltProgram FltProgram) (topLevelCollision []LcErrorTokenCollision) {
+func lcCheckProgram(fltProgram FltProgram) (
+	lcProg LcProgram, topLevelCollision []LcErrorTokenCollision, undefToks []Token,
+) {
 	tokenCollisions := []LcErrorTokenCollision{}
 	t := lcCheckTopLevelIdentCollision(fltProgram.TopLevelTypedefs, fltProgram.Imports)
 	tokenCollisions = append(tokenCollisions, t...)
@@ -72,13 +95,10 @@ func lcCheckProgram(fltProgram FltProgram) (topLevelCollision []LcErrorTokenColl
 			tokenCollisions = append(tokenCollisions, t...)
 		}
 	}
-	if len(tokenCollisions) > 0 {
-		return tokenCollisions
-	}
 	lcImports := map[string]AstImport{}
 	lcTlts := map[string]LcTopLevelType{}
 	for _, imp := range fltProgram.Imports {
-		// wont duplicate since we have checked top level ident collision above
+		// dont care about duplicate since we have checked top level ident collision above
 		lcImports[imp.ImportedAsIdent.Data] = imp
 	}
 	for _, tlt := range fltProgram.TopLevelTypedefs {
@@ -86,14 +106,22 @@ func lcCheckProgram(fltProgram FltProgram) (topLevelCollision []LcErrorTokenColl
 			pascalNorm := hfNormalizedToPascal(hfNormalizeIdent(*tlt.Oneof01TopLevelMintedName))
 			lcTlts[pascalNorm] = LcTltConvertNoCheckStripName(tlt)
 		} else if tlt.Oneof01TopLevelName != nil {
-
+			pascalNorm := hfNormalizedToPascal(hfNormalizeIdent(tlt.Oneof01TopLevelName.Data))
+			lcTlts[pascalNorm] = LcTltConvertNoCheckStripName(tlt)
 		} else {
 			panic("unreachable")
 		}
 	}
+	lcProgram := LcProgram{
+		Imports:      lcImports,
+		TopLevelDefs: lcTlts,
+	}
+	undefinedToks := lcCheckReferenceExist(lcProgram)
+	return lcProgram, tokenCollisions, undefinedToks
 }
 
-func lcCheckReferenceExist(lcProgram LcProgram) ([]Token, error) {
+// returns a list of tokens that is undefined references. len = 0 means no error.
+func lcCheckReferenceExist(lcProgram LcProgram) []Token {
 	undefinedTokens := []Token{}
 	for _, tld := range lcProgram.TopLevelDefs {
 		if tld.OneofTopLevelStruct != nil {
@@ -113,6 +141,8 @@ func lcCheckReferenceExist(lcProgram LcProgram) ([]Token, error) {
 			if _, has := lcProgram.TopLevelDefs[normPascal]; !has {
 				undefinedTokens = append(undefinedTokens, *tld.OneofTokenIdent)
 			}
+		} else if tld.OneofBuiltin != nil {
+			// nothing to check against
 		} else if tld.OneofListof != nil {
 			lcCheckReferenceExistInner(*tld.OneofListof, &undefinedTokens, lcProgram)
 		} else if tld.OneofImported != nil {
@@ -123,11 +153,7 @@ func lcCheckReferenceExist(lcProgram LcProgram) ([]Token, error) {
 			panic("unreachable")
 		}
 	}
-	if len(undefinedTokens) > 0 {
-		return undefinedTokens, fmt.Errorf("Undefined identifier(s)")
-	} else {
-		return undefinedTokens, nil
-	}
+	return undefinedTokens
 }
 
 func lcCheckReferenceExistInner(fltType LcTypeExpr, undefToks *[]Token, lcProgram LcProgram) {
@@ -138,6 +164,8 @@ func lcCheckReferenceExistInner(fltType LcTypeExpr, undefToks *[]Token, lcProgra
 		if _, has := lcProgram.TopLevelDefs[normPascal]; !has {
 			*undefToks = append(*undefToks, *fltType.OneofTokenIdent)
 		}
+	} else if fltType.OneofBuiltin != nil { 
+		// nothing to check
 	} else if fltType.OneofImported != nil {
 		if _, has := lcProgram.Imports[fltType.OneofImported.ImportedIdent.Data]; !has {
 			*undefToks = append(*undefToks, fltType.OneofImported.ImportedIdent)
@@ -240,14 +268,18 @@ func LcTltConvertNoCheckStripName(fltTlt FltTopLevelType) LcTopLevelType {
 		t := LcTupleConvertNoCheck(*fltTlt.OneofTopLevelTuple)
 		return LcTopLevelType{OneofTopLevelTuple: &t}
 	} else if fltTlt.OneofTokenIdent != nil {
-		return LcTopLevelType{OneofTokenIdent: fltTlt.OneofTokenIdent}
+		if builtin, is := LcIsBuiltIn(fltTlt.OneofTokenIdent.Data); is {
+			return LcTopLevelType{OneofBuiltin: &builtin}
+		} else {
+			return LcTopLevelType{OneofTokenIdent: fltTlt.OneofTokenIdent}
+		}
 	} else if fltTlt.OneofListof != nil {
 		t := LcTypeExprConvertNoCheck(*fltTlt.OneofListof)
 		return LcTopLevelType{OneofListof: &t}
 	} else if fltTlt.OneofImported != nil {
 		return LcTopLevelType{OneofImported: &LcImported{
 			ImportedIdent: fltTlt.OneofImported.ImportedIdent,
-			ForeignIdent: fltTlt.OneofImported.ForeignIdent,
+			ForeignIdent:  fltTlt.OneofImported.ForeignIdent,
 		}}
 	} else {
 		panic("unreachable")
@@ -265,14 +297,15 @@ func LcStructOrEnumLineConvertNoCheck(fltLine []FltStructOrEnumLine) []LcStructO
 			wireName = hfNormalizedToCamel(progNameNorm)
 		}
 		acc := LcStructOrEnumLine{
-			WireName: wireName,
-			ProgName: progNameNorm,
-			TypeExpr: LcTypeExprConvertNoCheck(a.TypeExpr),
-			Omittable: a.Omittable,
+			WireName:   wireName,
+			ProgName:   progNameNorm,
+			TypeExpr:   LcTypeExprConvertNoCheck(a.TypeExpr),
+			Omittable:  a.Omittable,
 			IsReserved: a.IsReserved,
 		}
+		coll = append(coll, acc)
 	}
-	return coll 
+	return coll
 }
 
 func LcTupleConvertNoCheck(fltLine []FltTypeExpr) []LcTypeExpr {
@@ -284,14 +317,18 @@ func LcTupleConvertNoCheck(fltLine []FltTypeExpr) []LcTypeExpr {
 }
 
 func LcTypeExprConvertNoCheck(fltTypeExpr FltTypeExpr) LcTypeExpr {
- 	if fltTypeExpr.OneofMintedIdent != nil {
+	if fltTypeExpr.OneofMintedIdent != nil {
 		return LcTypeExpr{OneofMintedIdent: fltTypeExpr.OneofMintedIdent}
 	} else if fltTypeExpr.OneofTokenIdent != nil {
-		return LcTypeExpr{OneofTokenIdent: fltTypeExpr.OneofTokenIdent}
+		if builtin, is := LcIsBuiltIn(fltTypeExpr.OneofTokenIdent.Data); is {
+			return LcTypeExpr{OneofBuiltin: &builtin}
+		} else {
+			return LcTypeExpr{OneofTokenIdent: fltTypeExpr.OneofTokenIdent}
+		}
 	} else if fltTypeExpr.OneofImported != nil {
 		return LcTypeExpr{OneofImported: &LcImported{
 			ImportedIdent: fltTypeExpr.OneofImported.ImportedIdent,
-			ForeignIdent: fltTypeExpr.OneofImported.ForeignIdent,
+			ForeignIdent:  fltTypeExpr.OneofImported.ForeignIdent,
 		}}
 	} else if fltTypeExpr.OneofListof != nil {
 		t := LcTypeExprConvertNoCheck(*fltTypeExpr.OneofListof)
