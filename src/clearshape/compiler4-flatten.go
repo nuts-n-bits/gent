@@ -5,8 +5,8 @@ import (
 )
 
 type FltProgram struct {
-	Imports      []AstImport       `json:"imports"`     
-	TopLevelDefs []FltTopLevelType `json:"topLevelDefs"`
+	Imports          []AstImport       `json:"imports"`
+	TopLevelTypedefs []FltTopLevelType `json:"topLevelDefs"`
 }
 
 type FltTopLevelType struct {
@@ -64,8 +64,8 @@ func fltFlattenProgram(astProgram AstProgram) (ret FltProgram) {
 	for _, astTypedef := range astProgram.Typedefs {
 		newTLT, addedTLT := fltSerializeTop(astTypedef.TypeExpr)
 		newTLT.Oneof01TopLevelName = &astTypedef.Ident
-		fltProgram.TopLevelDefs = append(fltProgram.TopLevelDefs, newTLT)
-		fltProgram.TopLevelDefs = append(fltProgram.TopLevelDefs, addedTLT...)
+		fltProgram.TopLevelTypedefs = append(fltProgram.TopLevelTypedefs, newTLT)
+		fltProgram.TopLevelTypedefs = append(fltProgram.TopLevelTypedefs, addedTLT...)
 	}
 	return fltProgram
 }
