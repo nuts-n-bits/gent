@@ -5,9 +5,8 @@ import (
 )
 
 type FltProgram struct {
-	// Imports is keyed by ident string without normalization
-	Imports      []AstImport       `json:"imports"`      // these imports should be normalized to snake_case
-	TopLevelDefs []FltTopLevelType `json:"topLevelDefs"` // these idents should be normalized to PascalCase
+	Imports      []AstImport       `json:"imports"`     
+	TopLevelDefs []FltTopLevelType `json:"topLevelDefs"`
 }
 
 type FltTopLevelType struct {
