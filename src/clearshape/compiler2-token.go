@@ -39,13 +39,13 @@ type Token struct {
 	End   int       `json:"end"`
 }
 
-func lexTokenizer(program string) ([]Token, error, int) {
+func lexTokenizer(program string) ([]Token, int, error) {
 	tokens := []Token{}
 	i := 0
 	for {
 		if i >= len(program) {
 			tokens = append(tokens, Token{Kind: TokenEof, Start: i, End: i})
-			return tokens, nil, 0
+			return tokens, 0, nil
 		} else if program[i] == ' ' || program[i] == '\t' || program[i] == '\n' || program[i] == '\r' {
 			i += 1
 		} else if program[i] == '/' && program[i+1] == '/' {
@@ -94,7 +94,7 @@ func lexTokenizer(program string) ([]Token, error, int) {
 		} else if program[i] == '"' {
 			strContent, newI, err := lexConsumeString(program, i+1)
 			if err != nil {
-				return tokens, err, i
+				return tokens, i, err
 			}
 			tokens = append(tokens, Token{Kind: TokenString, Start: i, End: newI, Data: strContent})
 			i = newI
@@ -119,7 +119,7 @@ func lexTokenizer(program string) ([]Token, error, int) {
 			}
 			i = i2
 		} else {
-			return tokens, fmt.Errorf("unexpected character at %d", i), i
+			return tokens, i, fmt.Errorf("unexpected character at %d", i)
 		}
 	}
 }

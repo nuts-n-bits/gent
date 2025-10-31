@@ -138,7 +138,7 @@ func show_ast(args ProgramCliParameters) {
 	if err != nil {
 		log.Fatalf("ERR: %s", err.Error())
 	}
-	tokens, err, errI := lexTokenizer(programStr)
+	tokens, errI, err := lexTokenizer(programStr)
 	if err != nil {
 		log.Fatalf("ERR: %s (at %#v)", err.Error(), tokens[errI])
 	}
@@ -160,7 +160,7 @@ func show_flt(args ProgramCliParameters) {
 	if err != nil {
 		log.Fatalf("ERR: %s", err.Error())
 	}
-	tokens, err, errI := lexTokenizer(programStr)
+	tokens, errI, err := lexTokenizer(programStr)
 	if err != nil {
 		log.Fatalf("ERR: %s (at %#v)", err.Error(), tokens[errI])
 	}
@@ -184,7 +184,7 @@ func show_lc(args ProgramCliParameters) {
 	if err != nil {
 		log.Fatalf("ERR: %s", err.Error())
 	}
-	tokens, err, errI := lexTokenizer(programStr)
+	tokens, errI, err := lexTokenizer(programStr)
 	if err != nil {
 		log.Fatalf("ERR: %s (at %#v)", err.Error(), tokens[errI])
 	}
