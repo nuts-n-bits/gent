@@ -90,8 +90,7 @@ func lcCheckProgram1Of2(fltProgram FltProgram) (*Token, error) {
 func lcCheckTopLevelReservedName(a []FltTopLevelType) (*Token, error) {
 	for _, e := range a {
 		if e.Oneof01TopLevelName != nil {
-			identCheck := strings.ToLower(hfNormalizedToCamel(hfNormalizeIdent(e.Oneof01TopLevelName.Data)))
-			if strings.HasPrefix(identCheck, "csres0") {
+			if lcIsReservedIdent(e.Oneof01TopLevelName.Data) {
 				return e.Oneof01TopLevelName,
 					fmt.Errorf("Identifiers cannot begin with `csres0` as it is reserved. This rule is case insensitive.")
 			}
@@ -124,10 +123,10 @@ func lcCheckProgram2Of2(fltProgram FltProgram) (
 	for _, tlt := range fltProgram.TopLevelTypedefs {
 		if tlt.Oneof01TopLevelMintedName != nil {
 			pascalNorm := hfNormalizedToPascal(hfNormalizeIdent(*tlt.Oneof01TopLevelMintedName))
-			lcTlts[pascalNorm] = LcTltConvertNoCheckStripName(tlt)
+			lcTlts[pascalNorm] = lcTltConvertNoCheckStripName(tlt)
 		} else if tlt.Oneof01TopLevelName != nil {
 			pascalNorm := hfNormalizedToPascal(hfNormalizeIdent(tlt.Oneof01TopLevelName.Data))
-			lcTlts[pascalNorm] = LcTltConvertNoCheckStripName(tlt)
+			lcTlts[pascalNorm] = lcTltConvertNoCheckStripName(tlt)
 		} else {
 			panic("unreachable")
 		}
@@ -168,6 +167,9 @@ func lcCheckReferenceExist(lcProgram LcProgram) []Token {
 		} else if tld.OneofImported != nil {
 			if _, has := lcProgram.Imports[tld.OneofImported.ImportedIdent.Data]; !has {
 				undefinedTokens = append(undefinedTokens, tld.OneofImported.ImportedIdent)
+			}
+			if lcIsReservedIdent(tld.OneofImported.ForeignIdent.Data) {
+				undefinedTokens = append(undefinedTokens, tld.OneofImported.ForeignIdent)
 			}
 		} else {
 			panic("unreachable")
@@ -277,15 +279,15 @@ func lcCheckStructOrEnumFieldNames(lines []FltStructOrEnumLine) []LcErrorTokenCo
 	return ret
 }
 
-func LcTltConvertNoCheckStripName(fltTlt FltTopLevelType) LcTopLevelType {
+func lcTltConvertNoCheckStripName(fltTlt FltTopLevelType) LcTopLevelType {
 	if fltTlt.OneofTopLevelStruct != nil {
-		t := LcStructOrEnumLineConvertNoCheck(*fltTlt.OneofTopLevelStruct)
+		t := lcStructOrEnumLineConvertNoCheck(*fltTlt.OneofTopLevelStruct)
 		return LcTopLevelType{OneofTopLevelStruct: &t}
 	} else if fltTlt.OneofTopLevelEnum != nil {
-		t := LcStructOrEnumLineConvertNoCheck(*fltTlt.OneofTopLevelEnum)
+		t := lcStructOrEnumLineConvertNoCheck(*fltTlt.OneofTopLevelEnum)
 		return LcTopLevelType{OneofTopLevelStruct: &t}
 	} else if fltTlt.OneofTopLevelTuple != nil {
-		t := LcTupleConvertNoCheck(*fltTlt.OneofTopLevelTuple)
+		t := lcTupleConvertNoCheck(*fltTlt.OneofTopLevelTuple)
 		return LcTopLevelType{OneofTopLevelTuple: &t}
 	} else if fltTlt.OneofTokenIdent != nil {
 		if builtin, is := LcIsBuiltIn(fltTlt.OneofTokenIdent.Data); is {
@@ -294,7 +296,7 @@ func LcTltConvertNoCheckStripName(fltTlt FltTopLevelType) LcTopLevelType {
 			return LcTopLevelType{OneofTokenIdent: fltTlt.OneofTokenIdent}
 		}
 	} else if fltTlt.OneofListof != nil {
-		t := LcTypeExprConvertNoCheck(*fltTlt.OneofListof)
+		t := lcTypeExprConvertNoCheck(*fltTlt.OneofListof)
 		return LcTopLevelType{OneofListof: &t}
 	} else if fltTlt.OneofImported != nil {
 		return LcTopLevelType{OneofImported: &LcImported{
@@ -306,7 +308,7 @@ func LcTltConvertNoCheckStripName(fltTlt FltTopLevelType) LcTopLevelType {
 	}
 }
 
-func LcStructOrEnumLineConvertNoCheck(fltLine []FltStructOrEnumLine) []LcStructOrEnumLine {
+func lcStructOrEnumLineConvertNoCheck(fltLine []FltStructOrEnumLine) []LcStructOrEnumLine {
 	coll := []LcStructOrEnumLine{}
 	for _, a := range fltLine {
 		wireName := ""
@@ -319,7 +321,7 @@ func LcStructOrEnumLineConvertNoCheck(fltLine []FltStructOrEnumLine) []LcStructO
 		acc := LcStructOrEnumLine{
 			WireName:   wireName,
 			ProgName:   progNameNorm,
-			TypeExpr:   LcTypeExprConvertNoCheck(a.TypeExpr),
+			TypeExpr:   lcTypeExprConvertNoCheck(a.TypeExpr),
 			Omittable:  a.Omittable,
 			IsReserved: a.IsReserved,
 		}
@@ -328,15 +330,15 @@ func LcStructOrEnumLineConvertNoCheck(fltLine []FltStructOrEnumLine) []LcStructO
 	return coll
 }
 
-func LcTupleConvertNoCheck(fltLine []FltTypeExpr) []LcTypeExpr {
+func lcTupleConvertNoCheck(fltLine []FltTypeExpr) []LcTypeExpr {
 	coll := []LcTypeExpr{}
 	for _, e := range fltLine {
-		coll = append(coll, LcTypeExprConvertNoCheck(e))
+		coll = append(coll, lcTypeExprConvertNoCheck(e))
 	}
 	return coll
 }
 
-func LcTypeExprConvertNoCheck(fltTypeExpr FltTypeExpr) LcTypeExpr {
+func lcTypeExprConvertNoCheck(fltTypeExpr FltTypeExpr) LcTypeExpr {
 	if fltTypeExpr.OneofMintedIdent != nil {
 		return LcTypeExpr{OneofMintedIdent: fltTypeExpr.OneofMintedIdent}
 	} else if fltTypeExpr.OneofTokenIdent != nil {
@@ -351,9 +353,14 @@ func LcTypeExprConvertNoCheck(fltTypeExpr FltTypeExpr) LcTypeExpr {
 			ForeignIdent:  fltTypeExpr.OneofImported.ForeignIdent,
 		}}
 	} else if fltTypeExpr.OneofListof != nil {
-		t := LcTypeExprConvertNoCheck(*fltTypeExpr.OneofListof)
+		t := lcTypeExprConvertNoCheck(*fltTypeExpr.OneofListof)
 		return LcTypeExpr{OneofListof: &t}
 	} else {
 		panic("unreachable")
 	}
+}
+
+func lcIsReservedIdent(ident string) bool {
+	allLowerCamel := strings.ToLower(hfNormalizedToCamel(hfNormalizeIdent(ident)))
+	return strings.HasPrefix(allLowerCamel, "csres0")
 }
