@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strconv"
 )
 
@@ -40,29 +41,30 @@ type FltStructOrEnumLine struct {
 	IsReserved bool        `json:"isReserved"`
 }
 
-// func chkProgram(astProgram AstProgram) (ChkProgram, *Token, error) {
-// 	chkProgram := ChkProgram{};
-// 	for _, typedef := range astProgram.Typedefs {
-// 		topLevelIdent := typedef.Ident.Data;
-// 		typedef.TypeExpr
-// 	}
-// }
+// expect a list of identifiers, critically these identifiers must not start with ascii 0-9 
+func nameMint(ss []string) string {
+	fmt.Printf("minting: %#v \n", ss)
+	coll := ""
+	for _, e := range ss {
+		coll += strconv.Itoa(len(e))
+		coll += e
+	}
+	fmt.Printf("minted: %s \n\n\n", coll)
+	return "Csres0" + coll
+}
 
-//func chkResolveTypeExpr
-
-var ctr int = 0
-
-func counter() string {
-	ret := strconv.Itoa(ctr)
-	ctr += 1
-	return "Csres0" + ret
+func copyAppend(ss []string, s string) []string {
+	ret := make([]string, len(ss) + 1);
+	copy(ret, ss)
+	ret[len(ss)] = s
+	return ret
 }
 
 func fltFlattenProgram(astProgram AstProgram) (ret FltProgram) {
 	fltProgram := FltProgram{}
 	fltProgram.Imports = astProgram.Imports
 	for _, astTypedef := range astProgram.Typedefs {
-		newTLT, addedTLT := fltSerializeTop(astTypedef.TypeExpr)
+		newTLT, addedTLT := fltSerializeTop(astTypedef.Ident.Data, astTypedef.TypeExpr)
 		newTLT.Oneof01TopLevelName = &astTypedef.Ident
 		fltProgram.TopLevelTypedefs = append(fltProgram.TopLevelTypedefs, newTLT)
 		fltProgram.TopLevelTypedefs = append(fltProgram.TopLevelTypedefs, addedTLT...)
@@ -70,26 +72,26 @@ func fltFlattenProgram(astProgram AstProgram) (ret FltProgram) {
 	return fltProgram
 }
 
-func fltSerializeInner(te AstTypeExpr) (selfT FltTypeExpr, addedTLT []FltTopLevelType) {
+func fltSerializeInner(te AstTypeExpr, nestedIdentsSoFar []string) (selfT FltTypeExpr, addedTLT []FltTopLevelType) {
 	if te.OneofDotAccessExpr != nil {
 		return FltTypeExpr{OneofImported: &FltImported{
 				ImportedIdent: te.OneofDotAccessExpr.LhsIdent,
 				ForeignIdent:  te.OneofDotAccessExpr.RhsIdent}},
 			[]FltTopLevelType{}
 	} else if te.OneofListOf != nil {
-		resSelfT, resAddedT := fltSerializeInner(*te.OneofListOf)
+		resSelfT, resAddedT := fltSerializeInner(*te.OneofListOf, nestedIdentsSoFar)
 		return FltTypeExpr{OneofListof: &resSelfT}, resAddedT
 	} else if te.OneofEnumDef != nil {
-		linesFlat, addedTlt := fltProcessStructOrEnum(*te.OneofEnumDef)
-		mintedTopIdent := counter()
+		linesFlat, addedTlt := fltProcessStructOrEnum(*te.OneofEnumDef, nestedIdentsSoFar)
+		mintedTopIdent := nameMint(nestedIdentsSoFar)
 		addedTlt = append(addedTlt, FltTopLevelType{
 			Oneof01TopLevelMintedName: &mintedTopIdent,
 			OneofTopLevelEnum:         &linesFlat,
 		})
 		return FltTypeExpr{OneofMintedIdent: &mintedTopIdent}, addedTlt
 	} else if te.OneofTupleDef != nil {
-		tuple, addedTLT := fltProcessTuple(*te.OneofTupleDef)
-		mintedTopIdent := counter()
+		tuple, addedTLT := fltProcessTuple(*te.OneofTupleDef, nestedIdentsSoFar)
+		mintedTopIdent := nameMint(nestedIdentsSoFar)
 		addedTLT = append(addedTLT, FltTopLevelType{
 			Oneof01TopLevelMintedName: &mintedTopIdent,
 			OneofTopLevelTuple:        &tuple,
@@ -99,8 +101,8 @@ func fltSerializeInner(te AstTypeExpr) (selfT FltTypeExpr, addedTLT []FltTopLeve
 		return FltTypeExpr{OneofTokenIdent: te.OneofTypeIdent},
 			[]FltTopLevelType{}
 	} else if te.OneofStructDef != nil {
-		linesFlat, addedTlt := fltProcessStructOrEnum(*te.OneofStructDef)
-		mintedTopIdent := counter()
+		linesFlat, addedTlt := fltProcessStructOrEnum(*te.OneofStructDef, nestedIdentsSoFar)
+		mintedTopIdent := nameMint(nestedIdentsSoFar)
 		addedTlt = append(addedTlt, FltTopLevelType{
 			Oneof01TopLevelMintedName: &mintedTopIdent,
 			OneofTopLevelStruct:       &linesFlat,
@@ -111,51 +113,51 @@ func fltSerializeInner(te AstTypeExpr) (selfT FltTypeExpr, addedTLT []FltTopLeve
 	}
 }
 
-func fltSerializeTop(te AstTypeExpr) (selfTLT FltTopLevelType, addedTLT []FltTopLevelType) {
+func fltSerializeTop(topIdent string, te AstTypeExpr) (selfTLT FltTopLevelType, addedTLT []FltTopLevelType) {
 	if te.OneofDotAccessExpr != nil {
 		return FltTopLevelType{OneofImported: &FltImported{
 				ImportedIdent: te.OneofDotAccessExpr.LhsIdent,
 				ForeignIdent:  te.OneofDotAccessExpr.RhsIdent}},
 			[]FltTopLevelType{}
 	} else if te.OneofListOf != nil {
-		resSelfT, resAddedT := fltSerializeInner(*te.OneofListOf)
+		resSelfT, resAddedT := fltSerializeInner(*te.OneofListOf, []string{topIdent})
 		return FltTopLevelType{OneofListof: &resSelfT}, resAddedT
 	} else if te.OneofEnumDef != nil {
-		linesFlat, addedTlt := fltProcessStructOrEnum(*te.OneofEnumDef)
+		linesFlat, addedTlt := fltProcessStructOrEnum(*te.OneofEnumDef, []string{topIdent})
 		return FltTopLevelType{OneofTopLevelEnum: &linesFlat}, addedTlt
 	} else if te.OneofTupleDef != nil {
-		tuple, addedTLT := fltProcessTuple(*te.OneofTupleDef)
+		tuple, addedTLT := fltProcessTuple(*te.OneofTupleDef, []string{topIdent})
 		return FltTopLevelType{OneofTopLevelTuple: &tuple}, addedTLT
 	} else if te.OneofTypeIdent != nil {
 		return FltTopLevelType{OneofTokenIdent: te.OneofTypeIdent}, []FltTopLevelType{}
 	} else if te.OneofStructDef != nil {
-		linesFlat, addedTlt := fltProcessStructOrEnum(*te.OneofStructDef)
+		linesFlat, addedTlt := fltProcessStructOrEnum(*te.OneofStructDef, []string{topIdent})
 		return FltTopLevelType{OneofTopLevelStruct: &linesFlat}, addedTlt
 	} else {
 		panic("unreachable")
 	}
 }
 
-func fltProcessTuple(astTypes []AstTypeExpr) (resTuple []FltTypeExpr, addedTlt []FltTopLevelType) {
+func fltProcessTuple(astTypes []AstTypeExpr, nestedIdentsSoFar []string) (resTuple []FltTypeExpr, addedTlt []FltTopLevelType) {
 	tltColl := []FltTopLevelType{}
 	teColl := []FltTypeExpr{}
-	for _, astType := range astTypes {
+	for i, astType := range astTypes {
 		// work on ast type expr recursively
-		resS, resT := fltSerializeInner(astType)
+		resS, resT := fltSerializeInner(astType, copyAppend(nestedIdentsSoFar, "field" + strconv.Itoa(i)))
 		tltColl = append(tltColl, resT...)
 		teColl = append(teColl, resS)
 	}
 	return teColl, tltColl
 }
 
-func fltProcessStructOrEnum(astLines []AstStructOrEnumLine) (
+func fltProcessStructOrEnum(astLines []AstStructOrEnumLine, nestedIdentsSoFar []string) (
 	linesFlat []FltStructOrEnumLine, addedTlt []FltTopLevelType,
 ) {
 	tltColl := []FltTopLevelType{}
 	linesColl := []FltStructOrEnumLine{}
 	for _, astLine := range astLines {
 		// work on ast type expr recursively
-		resS, resT := fltSerializeInner(astLine.TypeExpr)
+		resS, resT := fltSerializeInner(astLine.TypeExpr, copyAppend(nestedIdentsSoFar, astLine.ProgName.Data))
 		tltColl = append(tltColl, resT...)
 		line := FltStructOrEnumLine{
 			WireName:   astLine.WireName,
