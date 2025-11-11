@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -196,11 +197,11 @@ func show_lc(args ProgramCliParameters) {
 	fmt.Printf("\n\n\nAST\n%s", program.DebugString())
 	programFlt := fltFlattenProgram(program)
 	fmt.Printf("\n\n\nFLT\n%s", programFlt.DebugString())
-	errT, err := lcCheckProgram1Of2(programFlt)
+	errT, err := lcCheckProgram1Of2CheckReservedName(programFlt)
 	if err != nil {
 		log.Fatalf("ERR: %s (at %#v)", err.Error(), errT)
 	}
-	programLc, topLevelCollisions, undefinedRefs := lcCheckProgram2Of2(programFlt)
+	programLc, topLevelCollisions, undefinedRefs := lcCheckProgram2Of2CheckCollisionAndUndefined(programFlt)
 	if len(topLevelCollisions) > 0 || len(undefinedRefs) > 0 {
 		if len(topLevelCollisions) > 0 {
 			log.Printf("\n\nDetected %d duplicate identifiers: %#v\n", len(topLevelCollisions), topLevelCollisions)
@@ -210,8 +211,41 @@ func show_lc(args ProgramCliParameters) {
 		}
 		log.Fatalf("exiting due to previous error(s)")
 	}
-	fmt.Printf("\n\n\nLC\n%s", programLc.DebugString());
+	fmt.Printf("\n\n\nLC\n%s", programLc.DebugString())
 }
+
+func show_lnk_ball(args ProgramCliParameters) {
+	if len(args.rest) == 0 {
+		log.Fatal("ERR: No input file")
+	} else if len(args.rest) > 1 {
+		log.Fatal("ERR: Multiple input file")
+	}
+	linkedBall, errPath, err := lnkGatherSrcFiles(args.rest[0])
+	if err != nil {
+		log.Fatalf("In file %s, encountered error: %s", errPath, err.ErrToStr())
+	}
+	str, err1 := json.Marshal(linkedBall)
+	if err1 != nil {
+		log.Fatalf("Cannot json marshal linked ball")
+	}
+	log.Printf("\n\n\nLNK\n%s", str)
+}
+
+// func show_lnk_uni(args ProgramCliParameters) {
+// 	if len(args.rest) == 0 {
+// 		log.Fatal("ERR: No input file")
+// 	} else if len(args.rest) > 1 {
+// 		log.Fatal("ERR: Multiple input file")
+// 	}
+// 	linkedBall, errPath, err := lnkGatherSrcFiles(args.rest[0])
+// 	if err != nil {
+// 		log.Fatalf("In file %s, encountered error: %s", errPath, err.ErrToStr())
+// 	}
+// 	flatProg, err := lnkResolveImports(linkedBall)
+// 	if err != nil {
+		
+// 	}
+// }
 
 func main() {
 
@@ -228,5 +262,9 @@ func main() {
 		show_flt(args)
 	} else if args.verb == "show-lc" {
 		show_lc(args)
+	} else if args.verb == "show-lnk-ball" {
+		show_lnk_ball(args)
+	} else if args.verb == "show-lnk-uni" {
+		//show_lnk_uni(args)
 	}
 }
