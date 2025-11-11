@@ -83,7 +83,35 @@ type LcStructOrEnumLine struct {
 	IsReserved bool       `json:"isReserved"`
 }
 
-func lcCheckProgram1Of2(fltProgram FltProgram) (*Token, error) {
+func (lctlt *LcTopLevelType) match(
+	handlerForTopLevelStruct func(*[]LcStructOrEnumLine),
+	handlerForTopLevelEnum func(*[]LcStructOrEnumLine),
+	handlerForTopLevelTuple func(*[]LcTypeExpr),
+	handlerForTokenIdent func(*Token),
+	handlerForBuiltin func(*BuiltinType),
+	handlerForListof func(*LcTypeExpr),
+	handlerForImported func(*LcImported),
+) {
+	if lctlt.OneofTopLevelStruct != nil {
+		handlerForTopLevelStruct(lctlt.OneofTopLevelStruct)
+	} else if lctlt.OneofTopLevelEnum != nil {
+		handlerForTopLevelEnum(lctlt.OneofTopLevelEnum)
+	} else if lctlt.OneofTopLevelTuple != nil {
+		handlerForTopLevelTuple(lctlt.OneofTopLevelTuple)
+	} else if lctlt.OneofTokenIdent != nil {
+		handlerForTokenIdent(lctlt.OneofTokenIdent)
+	} else if lctlt.OneofBuiltin != nil {
+		handlerForBuiltin(lctlt.OneofBuiltin)
+	} else if lctlt.OneofListof != nil {
+		handlerForListof(lctlt.OneofListof)
+	} else if lctlt.OneofImported != nil {
+		handlerForImported(lctlt.OneofImported)
+	} else {
+		panic("unreachable")
+	}
+}
+
+func lcCheckProgram1Of2CheckReservedName(fltProgram FltProgram) (*Token, error) {
 	return lcCheckTopLevelReservedName(fltProgram.TopLevelTypedefs)
 }
 
@@ -99,7 +127,7 @@ func lcCheckTopLevelReservedName(a []FltTopLevelType) (*Token, error) {
 	return nil, nil
 }
 
-func lcCheckProgram2Of2(fltProgram FltProgram) (
+func lcCheckProgram2Of2CheckCollisionAndUndefined(fltProgram FltProgram) (
 	lcProg LcProgram, topLevelCollision []LcErrorTokenCollision, undefToks []Token,
 ) {
 	tokenCollisions := []LcErrorTokenCollision{}
@@ -200,10 +228,8 @@ func lcCheckReferenceExistInner(fltType LcTypeExpr, undefToks *[]Token, lcProgra
 }
 
 type LcErrorTokenCollision struct {
-	// always len >= 2
-	errT []Token
-	// always defined
-	err error
+	ErrT []Token `json:"errT"` // always len >= 2
+	Err  error   `json:"err"`  // always defined
 }
 
 func lcCheckTopLevelIdentCollision(tlts []FltTopLevelType, imports []AstImport) []LcErrorTokenCollision {
@@ -228,8 +254,8 @@ func lcCheckTopLevelIdentCollision(tlts []FltTopLevelType, imports []AstImport) 
 			continue
 		}
 		entry := LcErrorTokenCollision{
-			errT: v,
-			err: fmt.Errorf("Multiple colliding names for (%s) defined in top level. Remember "+
+			ErrT: v,
+			Err: fmt.Errorf("Multiple colliding names for (%s) defined in top level. Remember "+
 				"that names mustn't collide after PascalCase normalization is applied to them", k),
 		}
 		ret = append(ret, entry)
@@ -258,8 +284,8 @@ func lcCheckStructOrEnumFieldNames(lines []FltStructOrEnumLine) []LcErrorTokenCo
 			continue
 		}
 		entry := LcErrorTokenCollision{
-			errT: v,
-			err: fmt.Errorf("Multiple colliding prog names for (%s) in the same struct/enum definition. Remember "+
+			ErrT: v,
+			Err: fmt.Errorf("Multiple colliding prog names for (%s) in the same struct/enum definition. Remember "+
 				"that names mustn't collide after normalization is applied to them", k),
 		}
 		ret = append(ret, entry)
@@ -269,8 +295,8 @@ func lcCheckStructOrEnumFieldNames(lines []FltStructOrEnumLine) []LcErrorTokenCo
 			continue
 		}
 		entry := LcErrorTokenCollision{
-			errT: v,
-			err: fmt.Errorf("Multiple colliding wire names for (%s) in the same struct/enum definition. Remember "+
+			ErrT: v,
+			Err: fmt.Errorf("Multiple colliding wire names for (%s) in the same struct/enum definition. Remember "+
 				"that if a wire name is not provided, the prog name is coerced into wire name by transforming "+
 				"it into camelCase", k),
 		}
@@ -364,3 +390,9 @@ func lcIsReservedIdent(ident string) bool {
 	allLowerCamel := strings.ToLower(hfNormalizedToCamel(hfNormalizeIdent(ident)))
 	return strings.HasPrefix(allLowerCamel, "csres0")
 }
+
+
+
+
+
+
