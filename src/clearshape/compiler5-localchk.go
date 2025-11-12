@@ -59,6 +59,7 @@ type LcTopLevelType struct {
 	OneofTokenIdent     *Token                `json:"tokenIdent,omitempty"`
 	OneofBuiltin        *BuiltinType          `json:"builtin,omitempty"`
 	OneofListof         *LcTypeExpr           `json:"listOf,omitempty"`
+	OneofMapof          *LcTypeExpr           `json:"mapOf,omitempty"`
 	OneofImported       *LcImported           `json:"imported,omitempty"`
 }
 
@@ -68,6 +69,7 @@ type LcTypeExpr struct {
 	OneofBuiltin     *BuiltinType `json:"builtin,omitempty"`
 	OneofImported    *LcImported  `json:"imported,omitempty"`
 	OneofListof      *LcTypeExpr  `json:"listOf,omitempty"`
+	OneofMapof       *LcTypeExpr  `json:"mapOf,omitempty"`
 }
 
 type LcImported struct {
@@ -90,6 +92,7 @@ func (lctlt *LcTopLevelType) match(
 	handlerForTokenIdent func(*Token),
 	handlerForBuiltin func(*BuiltinType),
 	handlerForListof func(*LcTypeExpr),
+	handlerForMapof func(*LcTypeExpr),
 	handlerForImported func(*LcImported),
 ) {
 	if lctlt.OneofTopLevelStruct != nil {
@@ -104,6 +107,8 @@ func (lctlt *LcTopLevelType) match(
 		handlerForBuiltin(lctlt.OneofBuiltin)
 	} else if lctlt.OneofListof != nil {
 		handlerForListof(lctlt.OneofListof)
+	} else if lctlt.OneofMapof != nil {
+		handlerForMapof(lctlt.OneofMapof)
 	} else if lctlt.OneofImported != nil {
 		handlerForImported(lctlt.OneofImported)
 	} else {
@@ -118,9 +123,8 @@ func lcCheckProgram1Of2CheckReservedName(fltProgram FltProgram) (*Token, error) 
 func lcCheckTopLevelReservedName(a []FltTopLevelType) (*Token, error) {
 	for _, e := range a {
 		if e.Oneof01TopLevelName != nil {
-			if lcIsReservedIdent(e.Oneof01TopLevelName.Data) {
-				return e.Oneof01TopLevelName,
-					fmt.Errorf("Identifiers cannot begin with `csres` as it is reserved. This rule is case insensitive.")
+			if err := lcIsReservedIdent(e.Oneof01TopLevelName.Data); err != nil {
+				return e.Oneof01TopLevelName, err
 			}
 		}
 	}
@@ -192,11 +196,13 @@ func lcCheckReferenceExist(lcProgram LcProgram) []Token {
 			// nothing to check against
 		} else if tld.OneofListof != nil {
 			lcCheckReferenceExistInner(*tld.OneofListof, &undefinedTokens, lcProgram)
+		} else if tld.OneofMapof != nil {
+			lcCheckReferenceExistInner(*tld.OneofMapof, &undefinedTokens, lcProgram)
 		} else if tld.OneofImported != nil {
 			if _, has := lcProgram.Imports[tld.OneofImported.ImportedIdent.Data]; !has {
 				undefinedTokens = append(undefinedTokens, tld.OneofImported.ImportedIdent)
 			}
-			if lcIsReservedIdent(tld.OneofImported.ForeignIdent.Data) {
+			if lcIsReservedIdent(tld.OneofImported.ForeignIdent.Data) != nil {
 				undefinedTokens = append(undefinedTokens, tld.OneofImported.ForeignIdent)
 			}
 		} else {
@@ -222,6 +228,8 @@ func lcCheckReferenceExistInner(fltType LcTypeExpr, undefToks *[]Token, lcProgra
 		}
 	} else if fltType.OneofListof != nil {
 		lcCheckReferenceExistInner(*fltType.OneofListof, undefToks, lcProgram)
+	} else if fltType.OneofMapof != nil {
+		lcCheckReferenceExistInner(*fltType.OneofMapof, undefToks, lcProgram)
 	} else {
 		panic("unreachable")
 	}
@@ -324,6 +332,9 @@ func lcTltConvertNoCheckStripName(fltTlt FltTopLevelType) LcTopLevelType {
 	} else if fltTlt.OneofListof != nil {
 		t := lcTypeExprConvertNoCheck(*fltTlt.OneofListof)
 		return LcTopLevelType{OneofListof: &t}
+	} else if fltTlt.OneofListof != nil {
+		t := lcTypeExprConvertNoCheck(*fltTlt.OneofMapof)
+		return LcTopLevelType{OneofMapof: &t}
 	} else if fltTlt.OneofImported != nil {
 		return LcTopLevelType{OneofImported: &LcImported{
 			ImportedIdent: fltTlt.OneofImported.ImportedIdent,
@@ -381,18 +392,29 @@ func lcTypeExprConvertNoCheck(fltTypeExpr FltTypeExpr) LcTypeExpr {
 	} else if fltTypeExpr.OneofListof != nil {
 		t := lcTypeExprConvertNoCheck(*fltTypeExpr.OneofListof)
 		return LcTypeExpr{OneofListof: &t}
+	} else if fltTypeExpr.OneofMapof != nil {
+		t := lcTypeExprConvertNoCheck(*fltTypeExpr.OneofMapof)
+		return LcTypeExpr{OneofMapof: &t}
 	} else {
 		panic("unreachable")
 	}
 }
 
-func lcIsReservedIdent(ident string) bool {
+func lcIsReservedIdent(ident string) error {
 	allLowerCamel := strings.ToLower(hfNormalizedToCamel(hfNormalizeIdent(ident)))
-	return strings.HasPrefix(allLowerCamel, "csres")
+	if strings.HasPrefix(allLowerCamel, "csres") {
+		return fmt.Errorf("Identifiers cannot begin with `csres` as it is reserved. This rule is case insensitive.")
+	} else if allLowerCamel == "enum" {
+		return fmt.Errorf("Cannot use `enum` as identifier as it is reserved.")
+	} else if allLowerCamel == "import" {
+		return fmt.Errorf("Cannot use `import` as identifier as it is reserved.")
+	} else if allLowerCamel == "map" {
+		return fmt.Errorf("Cannot use `map` as identifier as it is reserved.")
+	} else if allLowerCamel == "as" {
+		return fmt.Errorf("Cannot use `as` as identifier as it is reserved.")
+	} else if allLowerCamel == "type" {
+		return fmt.Errorf("Cannot use `type` as identifier as it is reserved.")
+	} else {
+		return nil
+	}
 }
-
-
-
-
-
-
