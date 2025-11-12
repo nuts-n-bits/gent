@@ -62,3 +62,7 @@ func hfNormalizedToCamel(li []string) string {
 func hfNormalizedToSnake(li []string) string {
 	return strings.Join(li, "_")
 }
+
+func hfIsKw(tok Token, ident string) bool {
+	return tok.Kind == TokenIdent && tok.Data == ident
+}
