@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strconv"
 )
@@ -42,6 +44,9 @@ type FltStructOrEnumLine struct {
 }
 
 // expect a list of identifiers, critically these identifiers must not start with ascii 0-9 
+// TODO: if the resulting minted identifier is longer than 64 characters, the entire thing is truncated to the first 32 
+// characters, plus another 32 characters of hex hash that is obtained by running the entire string through sha2-256 
+// (sha2-256 outputs 64 hex asciis, the first 32 are used)
 func nameMint(ss []string) string {
 	fmt.Printf("minting: %#v \n", ss)
 	coll := ""
@@ -50,7 +55,16 @@ func nameMint(ss []string) string {
 		coll += e
 	}
 	fmt.Printf("minted: %s \n\n\n", coll)
-	return "Csres0" + coll
+	return limitSizeOfMintedName("Csres0" + coll)
+}
+
+func limitSizeOfMintedName(s string) string {
+	if len(s) <= 64 {
+		return s
+	}
+	sum := hex.EncodeToString(sha256.New().Sum([]byte(s)))
+	s = "Csres1" + s[6:32] + (sum)[0:32]
+	return s
 }
 
 func copyAppend(ss []string, s string) []string {
