@@ -151,6 +151,21 @@ func rdParseTypeExpression(tokens []Token, i int) (AstTypeExpr, int, error) {
 		}
 		i = newI
 		astTypeExpr.OneofStructDef = &structLines
+	} else if hfIsKw(tokens[i], "map") { // map(typeExpr)
+		i += 1;
+		if tokens[i].Kind != TokenOpenParen {
+			return AstTypeExpr{}, i, fmt.Errorf("expected OpenParen, got %s(%s)", tokens[i].Kind, tokens[i].Data)
+		}
+		astTypeExprInner, newI, err := rdParseTypeExpression(tokens, i+1)
+		if err != nil {
+			return AstTypeExpr{}, newI, err
+		}
+		i = newI
+		if tokens[i].Kind != TokenCloseParen {
+			return AstTypeExpr{}, i, fmt.Errorf("expected CloseParen, got %s(%s)", tokens[i].Kind, tokens[i].Data)
+		} 
+		astTypeExpr = AstTypeExpr{ OneofMapOf: &astTypeExprInner }
+		i += 1
 	} else if hfIsKw(tokens[i], "enum") { // enum { enum }
 		structLines, newI, err := rdParseTypeExprEnum(tokens, i)
 		if err != nil {
