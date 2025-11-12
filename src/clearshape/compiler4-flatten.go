@@ -20,6 +20,7 @@ type FltTopLevelType struct {
 	OneofTopLevelTuple        *[]FltTypeExpr         `json:"topLevelTuple,omitempty"`
 	OneofTokenIdent           *Token                 `json:"tokenIdent,omitempty"`
 	OneofListof               *FltTypeExpr           `json:"listOf,omitempty"`
+	OneofMapof                *FltTypeExpr           `json:"mapOf,omitempty"`
 	OneofImported             *FltImported           `json:"imported,omitempty"`
 }
 
@@ -28,6 +29,7 @@ type FltTypeExpr struct {
 	OneofTokenIdent  *Token       `json:"TokenIdent,omitempty"`
 	OneofImported    *FltImported `json:"imported,omitempty"`
 	OneofListof      *FltTypeExpr `json:"listOf,omitempty"`
+	OneofMapof       *FltTypeExpr `json:"mapOf,omitempty"`
 }
 
 type FltImported struct {
@@ -43,9 +45,9 @@ type FltStructOrEnumLine struct {
 	IsReserved bool        `json:"isReserved"`
 }
 
-// expect a list of identifiers, critically these identifiers must not start with ascii 0-9 
-// TODO: if the resulting minted identifier is longer than 64 characters, the entire thing is truncated to the first 32 
-// characters, plus another 32 characters of hex hash that is obtained by running the entire string through sha2-256 
+// expect a list of identifiers, critically these identifiers must not start with ascii 0-9
+// TODO: if the resulting minted identifier is longer than 64 characters, the entire thing is truncated to the first 32
+// characters, plus another 32 characters of hex hash that is obtained by running the entire string through sha2-256
 // (sha2-256 outputs 64 hex asciis, the first 32 are used)
 func nameMint(ss []string) string {
 	fmt.Printf("minting: %#v \n", ss)
@@ -68,7 +70,7 @@ func limitSizeOfMintedName(s string) string {
 }
 
 func copyAppend(ss []string, s string) []string {
-	ret := make([]string, len(ss) + 1);
+	ret := make([]string, len(ss)+1)
 	copy(ret, ss)
 	ret[len(ss)] = s
 	return ret
@@ -95,6 +97,9 @@ func fltSerializeInner(te AstTypeExpr, nestedIdentsSoFar []string) (selfT FltTyp
 	} else if te.OneofListOf != nil {
 		resSelfT, resAddedT := fltSerializeInner(*te.OneofListOf, nestedIdentsSoFar)
 		return FltTypeExpr{OneofListof: &resSelfT}, resAddedT
+	} else if te.OneofMapOf != nil {
+		resSelfT, resAddedT := fltSerializeInner(*te.OneofListOf, nestedIdentsSoFar)
+		return FltTypeExpr{OneofMapof: &resSelfT}, resAddedT
 	} else if te.OneofEnumDef != nil {
 		linesFlat, addedTlt := fltProcessStructOrEnum(*te.OneofEnumDef, nestedIdentsSoFar)
 		mintedTopIdent := nameMint(nestedIdentsSoFar)
@@ -136,6 +141,9 @@ func fltSerializeTop(topIdent string, te AstTypeExpr) (selfTLT FltTopLevelType, 
 	} else if te.OneofListOf != nil {
 		resSelfT, resAddedT := fltSerializeInner(*te.OneofListOf, []string{topIdent})
 		return FltTopLevelType{OneofListof: &resSelfT}, resAddedT
+	} else if te.OneofMapOf != nil {
+		resSelfT, resAddedT := fltSerializeInner(*te.OneofListOf, []string{topIdent})
+		return FltTopLevelType{OneofMapof: &resSelfT}, resAddedT
 	} else if te.OneofEnumDef != nil {
 		linesFlat, addedTlt := fltProcessStructOrEnum(*te.OneofEnumDef, []string{topIdent})
 		return FltTopLevelType{OneofTopLevelEnum: &linesFlat}, addedTlt
@@ -157,7 +165,7 @@ func fltProcessTuple(astTypes []AstTypeExpr, nestedIdentsSoFar []string) (resTup
 	teColl := []FltTypeExpr{}
 	for i, astType := range astTypes {
 		// work on ast type expr recursively
-		resS, resT := fltSerializeInner(astType, copyAppend(nestedIdentsSoFar, "field" + strconv.Itoa(i)))
+		resS, resT := fltSerializeInner(astType, copyAppend(nestedIdentsSoFar, "field"+strconv.Itoa(i)))
 		tltColl = append(tltColl, resT...)
 		teColl = append(teColl, resS)
 	}
