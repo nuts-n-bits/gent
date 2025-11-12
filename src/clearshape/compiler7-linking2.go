@@ -28,14 +28,15 @@ type LnkStructOrEnumLine struct {
 	IsReserved bool        `json:"isReserved"`
 }
 
-// func lnkResolveImports(ball LnkProcessedBall) (LnkResolvedFlatProgram, error) {
-// 	flatProg := LnkResolvedFlatProgram{}
-// 	startingProgram := ball.AllPrograms[ball.StartingProgram]
-// 	for tldIdent, tldValue := range startingProgram.TopLevelDefs {
-// 		lnkResolveImportsCore(tldValue, &flatProg)
-// 	}
-// }
+func lnkResolveImports(ball LnkProcessedBall) (LnkResolvedFlatProgram, error) {
+	flatProg := LnkResolvedFlatProgram{}
+	startingProgram := ball.AllPrograms[ball.StartingProgram]
+	for tldIdent, tldValue := range startingProgram.TopLevelDefs {
+		lnkResolveImportsCore(tldValue, &flatProg)
+	}
+}
 
 func lnkResolveImportsCore(currentTypeDef LcTopLevelType, flatProg *LnkResolvedFlatProgram) {
 	
 }
+
