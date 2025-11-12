@@ -120,7 +120,7 @@ func lcCheckTopLevelReservedName(a []FltTopLevelType) (*Token, error) {
 		if e.Oneof01TopLevelName != nil {
 			if lcIsReservedIdent(e.Oneof01TopLevelName.Data) {
 				return e.Oneof01TopLevelName,
-					fmt.Errorf("Identifiers cannot begin with `csres0` as it is reserved. This rule is case insensitive.")
+					fmt.Errorf("Identifiers cannot begin with `csres` as it is reserved. This rule is case insensitive.")
 			}
 		}
 	}
@@ -388,7 +388,7 @@ func lcTypeExprConvertNoCheck(fltTypeExpr FltTypeExpr) LcTypeExpr {
 
 func lcIsReservedIdent(ident string) bool {
 	allLowerCamel := strings.ToLower(hfNormalizedToCamel(hfNormalizeIdent(ident)))
-	return strings.HasPrefix(allLowerCamel, "csres0")
+	return strings.HasPrefix(allLowerCamel, "csres")
 }
 
 
