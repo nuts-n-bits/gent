@@ -23,6 +23,7 @@ type AstTypeExpr struct {
 	OneofDotAccessExpr *AstDotAccessExpr      `json:"dotAccessExpr,omitempty"`
 	OneofEnumDef       *[]AstStructOrEnumLine `json:"enumDef,omitempty"`
 	OneofListOf        *AstTypeExpr           `json:"listOf,omitempty"`
+	OneofMapOf         *AstTypeExpr           `json:"mapOf,omitempty"`
 	OneofStructDef     *[]AstStructOrEnumLine `json:"structDef,omitempty"`
 	OneofTypeIdent     *Token                 `json:"typeIdent,omitempty"`
 	OneofTupleDef      *[]AstTypeExpr         `json:"tupleDef,omitempty"`
@@ -34,34 +35,33 @@ type AstDotAccessExpr struct {
 }
 
 type AstStructOrEnumLine struct {
-	WireName *Token      `json:"wireName"` // can be omitted
-	ProgName Token       `json:"progName"`
-	TypeExpr AstTypeExpr `json:"typeExpr"`
-	Omittable bool       `json:"omittable"`  // ignored if its a enum line
-	IsReserved bool      `json:"isReserved"`  // if true, then typeExpr and omittable do not matter
+	WireName   *Token      `json:"wireName"` // can be omitted
+	ProgName   Token       `json:"progName"`
+	TypeExpr   AstTypeExpr `json:"typeExpr"`
+	Omittable  bool        `json:"omittable"`  // ignored if its a enum line
+	IsReserved bool        `json:"isReserved"` // if true, then typeExpr and omittable do not matter
 }
 
 func rdParseProgram(tokens []Token) (AstProgram, int, error) {
 	program, i := AstProgram{}, 0
 	for {
-		switch tokens[i].Kind {
-		case TokenKwImport:
+		if hfIsKw(tokens[i], "import") {
 			importStmt, newI, err := rdParseImport(tokens, i)
 			if err != nil {
 				return AstProgram{}, newI, err
 			}
 			i = newI
 			program.Imports = append(program.Imports, importStmt)
-		case TokenKwType:
+		} else if hfIsKw(tokens[i], "type") {
 			typeDef, newI, err := rdParseTypedef(tokens, i)
 			if err != nil {
 				return AstProgram{}, newI, err
 			}
 			i = newI
 			program.Typedefs = append(program.Typedefs, typeDef)
-		case TokenEof:
+		} else if tokens[i].Kind == TokenEof {
 			return program, i, nil
-		default:
+		} else {
 			return AstProgram{}, i, fmt.Errorf("unexpected token %s(%s)", tokens[i].Kind, tokens[i].Data)
 		}
 	}
@@ -70,7 +70,7 @@ func rdParseProgram(tokens []Token) (AstProgram, int, error) {
 func rdParseTypedef(tokens []Token, i int) (AstTypedef, int, error) {
 	astTypedef := AstTypedef{}
 	// consume keyword type or error
-	if tokens[i].Kind == TokenKwType {
+	if hfIsKw(tokens[i], "type") {
 		i += 1
 	} else {
 		return AstTypedef{}, i, fmt.Errorf("expected keyword type")
@@ -101,7 +101,7 @@ func rdParseTypedef(tokens []Token, i int) (AstTypedef, int, error) {
 func rdParseImport(tokens []Token, i int) (AstImport, int, error) {
 	astImport := AstImport{}
 	// consume keyword import
-	if tokens[i].Kind == TokenKwImport {
+	if hfIsKw(tokens[i], "import") {
 		i += 1
 	} else {
 		return AstImport{}, i, fmt.Errorf("expected `import` keyword, got %s(%s)", tokens[i].Kind, tokens[i].Data)
@@ -114,7 +114,7 @@ func rdParseImport(tokens []Token, i int) (AstImport, int, error) {
 		return AstImport{}, i, fmt.Errorf("expected source location string, got %s(%s)", tokens[i].Kind, tokens[i].Data)
 	}
 	// consume keyword as
-	if tokens[i].Kind == TokenKwAs {
+	if hfIsKw(tokens[i], "as") {
 		i += 1
 	} else {
 		return AstImport{}, i, fmt.Errorf("expected `as` keyword, got %s(%s)", tokens[i].Kind, tokens[i].Data)
@@ -151,7 +151,7 @@ func rdParseTypeExpression(tokens []Token, i int) (AstTypeExpr, int, error) {
 		}
 		i = newI
 		astTypeExpr.OneofStructDef = &structLines
-	} else if tokens[i].Kind == TokenKwEnum { // enum { enum }
+	} else if hfIsKw(tokens[i], "enum") { // enum { enum }
 		structLines, newI, err := rdParseTypeExprEnum(tokens, i)
 		if err != nil {
 			return AstTypeExpr{}, newI, err
@@ -188,7 +188,7 @@ func rdParseTypeExpression(tokens []Token, i int) (AstTypeExpr, int, error) {
 
 func rdParseTypeExprEnum(tokens []Token, i int) ([]AstStructOrEnumLine, int, error) {
 	// consume `enum`
-	if tokens[i].Kind == TokenKwEnum {
+	if hfIsKw(tokens[i], "enum") {
 		i += 1
 	} else {
 		return []AstStructOrEnumLine{}, i, fmt.Errorf("expected keyword enum, got %s(%s)", tokens[i].Kind, tokens[i].Data)
@@ -235,7 +235,7 @@ func rdParseTypeExprStruct(tokens []Token, i int, allowQuestionMark bool) ([]Ast
 				line.Omittable = true
 				i += 1
 			} else {
-				return []AstStructOrEnumLine{}, i, fmt.Errorf("Question mark not allowed inside enum");
+				return []AstStructOrEnumLine{}, i, fmt.Errorf("Question mark not allowed inside enum")
 			}
 		}
 		// consume `:`

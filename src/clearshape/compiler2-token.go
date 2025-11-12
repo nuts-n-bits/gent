@@ -8,12 +8,6 @@ import (
 type TokenKind string
 
 const (
-	TokenKwAs         TokenKind = "TokenKwAs"
-	TokenKwImport     TokenKind = "TokenKwImport"
-	TokenKwEnum       TokenKind = "TokenKwEnum"
-	TokenKwExport     TokenKind = "TokenKwExport"
-	TokenKwReserved   TokenKind = "TokenKwReserved"
-	TokenKwType       TokenKind = "TokenKwType"
 	TokenOpenBrace    TokenKind = "TokenOpenBrace"
 	TokenCloseBrace   TokenKind = "TokenCloseBrace"
 	TokenOpenParen    TokenKind = "TokenOpenParen"
@@ -101,22 +95,7 @@ func lexTokenizer(program string) ([]Token, int, error) {
 		} else if lexIsIdentStart(program[i]) {
 			ident := lexConsumeIdent(program, i)
 			i2 := i + len(ident)
-			switch ident {
-			case "as":
-				tokens = append(tokens, Token{Kind: TokenKwAs, Start: i, End: i2})
-			case "export":
-				tokens = append(tokens, Token{Kind: TokenKwExport, Start: i, End: i2})
-			case "import":
-				tokens = append(tokens, Token{Kind: TokenKwImport, Start: i, End: i2})
-			case "reserved":
-				tokens = append(tokens, Token{Kind: TokenKwReserved, Start: i, End: i2})
-			case "type":
-				tokens = append(tokens, Token{Kind: TokenKwType, Start: i, End: i2})
-			case "enum":
-				tokens = append(tokens, Token{Kind: TokenKwEnum, Start: i, End: i2})
-			default:
-				tokens = append(tokens, Token{Kind: TokenIdent, Data: ident, Start: i, End: i2})
-			}
+			tokens = append(tokens, Token{Kind: TokenIdent, Data: ident, Start: i, End: i2})
 			i = i2
 		} else {
 			return tokens, i, fmt.Errorf("unexpected character at %d", i)
