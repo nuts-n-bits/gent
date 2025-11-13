@@ -11,7 +11,6 @@ type LnkTopLevelType struct {
 	OneofTopLevelEnum   *[]LnkStructOrEnumLine `json:"topLevelEnum,omitempty"`
 	OneofTopLevelTuple  *[]LnkTypeExpr         `json:"topLevelTuple,omitempty"`
 	OneofTokenIdent     *Token                 `json:"tokenIdent,omitempty"`
-	OneofMintedIdent    *string                
 	OneofBuiltin        *BuiltinType           `json:"builtin,omitempty"`
 	OneofListof         *LnkTypeExpr           `json:"listOf,omitempty"`
 	OneofMapof          *LnkTypeExpr           `json:"mapOf,omitempty"`
