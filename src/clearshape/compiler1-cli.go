@@ -222,7 +222,11 @@ func show_lnk_ball(args ProgramCliParameters) {
 	}
 	linkedBall, errPath, err := lnkGatherSrcFiles(args.rest[0])
 	if err != nil {
-		log.Fatalf("In file %s, encountered error: %s", errPath, err.ErrToStr())
+		errDesc, mErr := json.Marshal(err)
+		if mErr != nil {
+			panic("shouldn't really happen")
+		}
+		log.Fatalf("In file %s, encountered error: %s (%s)", errPath, err.ErrToStr(), errDesc)
 	}
 	str, err1 := json.Marshal(linkedBall)
 	if err1 != nil {
