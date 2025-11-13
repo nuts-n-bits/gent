@@ -11,6 +11,7 @@ type LnkTopLevelType struct {
 	OneofTokenIdent     *Token                 `json:"tokenIdent,omitempty"`
 	OneofBuiltin        *BuiltinType           `json:"builtin,omitempty"`
 	OneofListof         *LnkTypeExpr           `json:"listOf,omitempty"`
+	OneofMapof          *LnkTypeExpr           `json:"mapOf,omitempty"`
 }
 
 type LnkTypeExpr struct {
@@ -18,6 +19,7 @@ type LnkTypeExpr struct {
 	OneofTokenIdent  *Token       `json:"TokenIdent,omitempty"`
 	OneofBuiltin     *BuiltinType `json:"builtin,omitempty"`
 	OneofListof      *LnkTypeExpr `json:"listOf,omitempty"`
+	OneofMapof       *LnkTypeExpr `json:"mapOf,omitempty"`
 }
 
 type LnkStructOrEnumLine struct {
@@ -37,6 +39,5 @@ func lnkResolveImports(ball LnkProcessedBall) (LnkResolvedFlatProgram, error) {
 }
 
 func lnkResolveImportsCore(currentTypeDef LcTopLevelType, flatProg *LnkResolvedFlatProgram) {
-	
-}
 
+}
