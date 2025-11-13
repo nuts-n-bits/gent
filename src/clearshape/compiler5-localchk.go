@@ -85,37 +85,6 @@ type LcStructOrEnumLine struct {
 	IsReserved bool       `json:"isReserved"`
 }
 
-func (lctlt *LcTopLevelType) match(
-	handlerForTopLevelStruct func(*[]LcStructOrEnumLine),
-	handlerForTopLevelEnum func(*[]LcStructOrEnumLine),
-	handlerForTopLevelTuple func(*[]LcTypeExpr),
-	handlerForTokenIdent func(*Token),
-	handlerForBuiltin func(*BuiltinType),
-	handlerForListof func(*LcTypeExpr),
-	handlerForMapof func(*LcTypeExpr),
-	handlerForImported func(*LcImported),
-) {
-	if lctlt.OneofTopLevelStruct != nil {
-		handlerForTopLevelStruct(lctlt.OneofTopLevelStruct)
-	} else if lctlt.OneofTopLevelEnum != nil {
-		handlerForTopLevelEnum(lctlt.OneofTopLevelEnum)
-	} else if lctlt.OneofTopLevelTuple != nil {
-		handlerForTopLevelTuple(lctlt.OneofTopLevelTuple)
-	} else if lctlt.OneofTokenIdent != nil {
-		handlerForTokenIdent(lctlt.OneofTokenIdent)
-	} else if lctlt.OneofBuiltin != nil {
-		handlerForBuiltin(lctlt.OneofBuiltin)
-	} else if lctlt.OneofListof != nil {
-		handlerForListof(lctlt.OneofListof)
-	} else if lctlt.OneofMapof != nil {
-		handlerForMapof(lctlt.OneofMapof)
-	} else if lctlt.OneofImported != nil {
-		handlerForImported(lctlt.OneofImported)
-	} else {
-		panic("unreachable")
-	}
-}
-
 func lcCheckProgram1Of2CheckReservedName(fltProgram FltProgram) (*Token, error) {
 	return lcCheckTopLevelReservedName(fltProgram.TopLevelTypedefs)
 }
