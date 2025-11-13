@@ -43,28 +43,60 @@ func lnkResolveImports(ball LnkProcessedBall) (LnkResolvedFlatProgram, error) {
 	}
 }
 
-func lnkResolveImportsTltCore(currentLcTlt LcTopLevelType, flatProg *LnkResolvedFlatProgram) {
-	var lnkTlt LnkTopLevelType
-	currentLcTlt.match(func(structDef *[]LcStructOrEnumLine) {
+func lnkResolveImportsTltCore(
+	currentLcTlt LcTopLevelType, 
+	currentLnkProg LnkSingleProgram, 
+	lnkBall LnkProcessedBall, 
+	flatProg *LnkResolvedFlatProgram,
+) (errTok *Token, err error) {
+	if currentLcTlt.OneofBuiltin != nil {
+		lnkTlt := LnkTopLevelType{OneofBuiltin: currentLcTlt.OneofBuiltin}
+		flatProg.Types = append(flatProg.Types, lnkTlt)
+	} else if currentLcTlt.OneofImported != nil {
+		importAsIdent := currentLcTlt.OneofImported.ImportedIdent.Data
+		importedFileLnkImportData, has := currentLnkProg.Imports[importAsIdent]
+		if !has {
+			panic("shouldnt really happen")
+		}
+		importedFileAbsPath := importedFileLnkImportData.ImportSrcLocationAbsoluteString
+		importedProgram, has := lnkBall.AllPrograms[importedFileAbsPath]
+		if !has {
+			panic("shouldnt really happen")
+		}
+		importForeignIdent := currentLcTlt.OneofImported.ForeignIdent.Data
+		importedTld, has := importedProgram.TopLevelDefs[importForeignIdent] 
+		if !has {
+			return &currentLcTlt.OneofImported.ForeignIdent, 
+			fmt.Errorf("undefined foreign identifier %s", importForeignIdent)
+		}
+		nameMint([]string{})
+	} else if currentLcTlt.OneofListof != nil {
 		// TODO
-	}, func(enumDef *[]LcStructOrEnumLine) {
-		// TODO
-	}, func(tupleDef *[]LcTypeExpr) {
-		// TODO
-	}, func(tokenIdent *Token) {
-		lnkTlt = LnkTopLevelType{OneofTokenIdent: tokenIdent}
-	}, func(builtin *BuiltinType) {
-		lnkTlt = LnkTopLevelType{OneofBuiltin: builtin}
-	}, func(listOf *LcTypeExpr) {
-		// TODO
-	}, func(mapOf *LcTypeExpr) {
-		// TODO
-	}, func(imported *LcImported) {
 
-	})
-	flatProg.Types = append(flatProg.Types, )
+	} else if currentLcTlt.OneofMapof != nil {
+		// TODO
+
+	} else if currentLcTlt.OneofTokenIdent != nil {
+		lnkTlt := LnkTopLevelType{OneofTokenIdent: currentLcTlt.OneofTokenIdent}
+		flatProg.Types = append(flatProg.Types, lnkTlt)
+	} else if currentLcTlt.OneofTopLevelEnum != nil {
+		// TODO
+
+	} else if currentLcTlt.OneofTopLevelStruct != nil {
+		// TODO
+
+	} else if currentLcTlt.OneofTopLevelTuple != nil {
+		// TODO
+
+	} else {
+		panic("unreachable")
+	}	
 }
 
-func lnkResolveImportsCore(lcType ) {
+func lnkResolveImportsCore(lcType LcTypeExpr, flatProg *LnkResolvedFlatProgram) {
+
+}
+
+func lnkCreateLocalTypeForImport(lcTlt LcTopLevelType, flatProg *LnkResolvedFlatProgram) {
 
 }
