@@ -13,15 +13,19 @@ type FltProgram struct {
 }
 
 type FltTopLevelType struct {
-	Oneof01TopLevelName       *Token                 `json:"topLevelName,omitempty"`
-	Oneof01TopLevelMintedName *string                `json:"topLevelMintedName,omitempty"`
-	OneofTopLevelStruct       *[]FltStructOrEnumLine `json:"topLevelStruct,omitempty"`
-	OneofTopLevelEnum         *[]FltStructOrEnumLine `json:"topLevelEnum,omitempty"`
-	OneofTopLevelTuple        *[]FltTypeExpr         `json:"topLevelTuple,omitempty"`
-	OneofTokenIdent           *Token                 `json:"tokenIdent,omitempty"`
-	OneofListof               *FltTypeExpr           `json:"listOf,omitempty"`
-	OneofMapof                *FltTypeExpr           `json:"mapOf,omitempty"`
-	OneofImported             *FltImported           `json:"imported,omitempty"`
+	SelfName            FltTopLevelName        `json:"selfName"`
+	OneofTopLevelStruct *[]FltStructOrEnumLine `json:"topLevelStruct,omitempty"`
+	OneofTopLevelEnum   *[]FltStructOrEnumLine `json:"topLevelEnum,omitempty"`
+	OneofTopLevelTuple  *[]FltTypeExpr         `json:"topLevelTuple,omitempty"`
+	OneofTokenIdent     *Token                 `json:"tokenIdent,omitempty"`
+	OneofListof         *FltTypeExpr           `json:"listOf,omitempty"`
+	OneofMapof          *FltTypeExpr           `json:"mapOf,omitempty"`
+	OneofImported       *FltImported           `json:"imported,omitempty"`
+}
+
+type FltTopLevelName struct {
+	OneofTopLevelName       *Token  `json:"topLevelName,omitempty"`
+	OneofTopLevelMintedName *string `json:"topLevelMintedName,omitempty"`
 }
 
 type FltTypeExpr struct {
@@ -81,7 +85,7 @@ func fltFlattenProgram(astProgram AstProgram) (ret FltProgram) {
 	fltProgram.Imports = astProgram.Imports
 	for _, astTypedef := range astProgram.Typedefs {
 		newTLT, addedTLT := fltSerializeTop(astTypedef.Ident.Data, astTypedef.TypeExpr)
-		newTLT.Oneof01TopLevelName = &astTypedef.Ident
+		newTLT.SelfName.OneofTopLevelName = &astTypedef.Ident
 		fltProgram.TopLevelTypedefs = append(fltProgram.TopLevelTypedefs, newTLT)
 		fltProgram.TopLevelTypedefs = append(fltProgram.TopLevelTypedefs, addedTLT...)
 	}
@@ -104,7 +108,7 @@ func fltSerializeInner(te AstTypeExpr, nestedIdentsSoFar []string) (selfT FltTyp
 		linesFlat, addedTlt := fltProcessStructOrEnum(*te.OneofEnumDef, nestedIdentsSoFar)
 		mintedTopIdent := nameMint(nestedIdentsSoFar)
 		addedTlt = append(addedTlt, FltTopLevelType{
-			Oneof01TopLevelMintedName: &mintedTopIdent,
+			SelfName: FltTopLevelName{OneofTopLevelMintedName: &mintedTopIdent},
 			OneofTopLevelEnum:         &linesFlat,
 		})
 		return FltTypeExpr{OneofMintedIdent: &mintedTopIdent}, addedTlt
@@ -112,7 +116,7 @@ func fltSerializeInner(te AstTypeExpr, nestedIdentsSoFar []string) (selfT FltTyp
 		tuple, addedTLT := fltProcessTuple(*te.OneofTupleDef, nestedIdentsSoFar)
 		mintedTopIdent := nameMint(nestedIdentsSoFar)
 		addedTLT = append(addedTLT, FltTopLevelType{
-			Oneof01TopLevelMintedName: &mintedTopIdent,
+			SelfName: FltTopLevelName{OneofTopLevelMintedName: &mintedTopIdent},
 			OneofTopLevelTuple:        &tuple,
 		})
 		return FltTypeExpr{OneofMintedIdent: &mintedTopIdent}, addedTLT
@@ -123,7 +127,7 @@ func fltSerializeInner(te AstTypeExpr, nestedIdentsSoFar []string) (selfT FltTyp
 		linesFlat, addedTlt := fltProcessStructOrEnum(*te.OneofStructDef, nestedIdentsSoFar)
 		mintedTopIdent := nameMint(nestedIdentsSoFar)
 		addedTlt = append(addedTlt, FltTopLevelType{
-			Oneof01TopLevelMintedName: &mintedTopIdent,
+			SelfName: FltTopLevelName{OneofTopLevelMintedName: &mintedTopIdent},
 			OneofTopLevelStruct:       &linesFlat,
 		})
 		return FltTypeExpr{OneofMintedIdent: &mintedTopIdent}, addedTlt

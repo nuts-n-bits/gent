@@ -122,9 +122,9 @@ func lcCheckProgram1Of2CheckReservedName(fltProgram FltProgram) (*Token, error) 
 
 func lcCheckTopLevelReservedName(a []FltTopLevelType) (*Token, error) {
 	for _, e := range a {
-		if e.Oneof01TopLevelName != nil {
-			if err := lcIsReservedIdent(e.Oneof01TopLevelName.Data); err != nil {
-				return e.Oneof01TopLevelName, err
+		if e.SelfName.OneofTopLevelName != nil {
+			if err := lcIsReservedIdent(e.SelfName.OneofTopLevelName.Data); err != nil {
+				return e.SelfName.OneofTopLevelName, err
 			}
 		}
 	}
@@ -153,11 +153,11 @@ func lcCheckProgram2Of2CheckCollisionAndUndefined(fltProgram FltProgram) (
 		lcImports[imp.ImportedAsIdent.Data] = imp
 	}
 	for _, tlt := range fltProgram.TopLevelTypedefs {
-		if tlt.Oneof01TopLevelMintedName != nil {
-			pascalNorm := hfNormalizedToPascal(hfNormalizeIdent(*tlt.Oneof01TopLevelMintedName))
+		if tlt.SelfName.OneofTopLevelMintedName != nil {
+			pascalNorm := hfNormalizedToPascal(hfNormalizeIdent(*tlt.SelfName.OneofTopLevelMintedName))
 			lcTlts[pascalNorm] = lcTltConvertNoCheckStripName(tlt)
-		} else if tlt.Oneof01TopLevelName != nil {
-			pascalNorm := hfNormalizedToPascal(hfNormalizeIdent(tlt.Oneof01TopLevelName.Data))
+		} else if tlt.SelfName.OneofTopLevelName != nil {
+			pascalNorm := hfNormalizedToPascal(hfNormalizeIdent(tlt.SelfName.OneofTopLevelName.Data))
 			lcTlts[pascalNorm] = lcTltConvertNoCheckStripName(tlt)
 		} else {
 			panic("unreachable")
@@ -243,10 +243,10 @@ type LcErrorTokenCollision struct {
 func lcCheckTopLevelIdentCollision(tlts []FltTopLevelType, imports []AstImport) []LcErrorTokenCollision {
 	seenTli := map[string][]Token{}
 	for _, tlt := range tlts {
-		if tlt.Oneof01TopLevelName != nil {
-			pascalName := hfNormalizedToPascal(hfNormalizeIdent(tlt.Oneof01TopLevelName.Data))
-			seenTli[pascalName] = append(seenTli[pascalName], *tlt.Oneof01TopLevelName)
-		} else if tlt.Oneof01TopLevelMintedName != nil {
+		if tlt.SelfName.OneofTopLevelName != nil {
+			pascalName := hfNormalizedToPascal(hfNormalizeIdent(tlt.SelfName.OneofTopLevelName.Data))
+			seenTli[pascalName] = append(seenTli[pascalName], *tlt.SelfName.OneofTopLevelName)
+		} else if tlt.SelfName.OneofTopLevelMintedName != nil {
 			// do nothing for now since minted name is not supposed to collide anyways
 		} else {
 			panic("unreachable")
