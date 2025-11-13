@@ -60,17 +60,13 @@ func nameMint(ss []string) string {
 		coll += strconv.Itoa(len(e))
 		coll += e
 	}
-	fmt.Printf("minted: %s \n\n\n", coll)
-	return limitSizeOfMintedName("Csres0" + coll)
-}
-
-func limitSizeOfMintedName(s string) string {
-	if len(s) <= 64 {
-		return s
+	coll = "Csres0" + coll
+	if len(coll) <= 64 {
+		return coll
 	}
-	sum := hex.EncodeToString(sha256.New().Sum([]byte(s)))
-	s = "Csres1" + s[6:32] + (sum)[0:32]
-	return s
+	sum := hex.EncodeToString(sha256.New().Sum([]byte(coll)))
+	coll = "Csres1" + coll[6:32] + (sum)[0:32]
+	return coll
 }
 
 func copyAppend(ss []string, s string) []string {
