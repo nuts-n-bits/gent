@@ -41,13 +41,14 @@ type LnkProcessedBall struct {
 	AllPrograms     map[string]LnkSingleProgram `json:"allPrograms"`     // AllPrograms is keyed by the absolute path of the program
 	StartingProgram string                      `json:"startingProgram"` // StartingProgram is a string that points to the starting program in the AllPrograms map
 }
+
 // start: the starting path, which is a relative path (relative to current wdr) of the file
 func lnkGatherSrcFiles(start string) (ret LnkProcessedBall, errFilePath string, lnkErr *LnkErrorUnion) {
 	absStart, err := filepath.Abs(start)
 	if err != nil {
 		return LnkProcessedBall{}, start, &LnkErrorUnion{OneofReadfileErr: err}
 	}
-	lnkBall := LnkProcessedBall{AllPrograms: make(map[string]LnkSingleProgram, 0)}
+	lnkBall := LnkProcessedBall{AllPrograms: make(map[string]LnkSingleProgram, 0), StartingProgram: absStart}
 	errFilePath, lnkErr = lnkGatherSrcFilesCore(absStart, &lnkBall)
 	if lnkErr != nil {
 		return LnkProcessedBall{}, errFilePath, lnkErr
