@@ -1,3 +1,5 @@
+// in linking 1, we gather all the imported files recursively and check if each imported symbol exists
+
 package main
 
 import (
@@ -27,11 +29,11 @@ type LnkTokenErr1 struct {
 type LnkSingleProgram struct {
 	FileAbsPath  string                    `json:"fileAbsPath"`  // The absolute path of the file that the LcProgram is generated from
 	FileAbsDir   string                    `json:"fileAbsDir"`   // The absolute path of the directory of which the file resides
-	Imports      map[string]LnkImport      `json:"imports"`      // Imports is keyed by ident string without normalization
+	Imports      map[string]LnkImportStmt  `json:"imports"`      // Imports is keyed by ident string without normalization
 	TopLevelDefs map[string]LcTopLevelType `json:"topLevelDefs"` // these idents should be normalized to PascalCase
 }
 
-type LnkImport struct {
+type LnkImportStmt struct {
 	ImportSrcLocationString         Token  `json:"importSrcLocationString"`
 	ImportedAsIdent                 Token  `json:"importedAsIdent"`
 	ImportSrcLocationAbsoluteString string `json:"importSrcLocationAbsoluteString"`
@@ -62,7 +64,7 @@ func lnkGatherSrcFilesCore(currentFileAbs string, ball *LnkProcessedBall) (errFi
 	if lnkErr != nil {
 		return currentFileAbs, lnkErr
 	}
-	modifiedImports := map[string]LnkImport{}
+	modifiedImports := map[string]LnkImportStmt{}
 	fileAbsDir := filepath.Dir(currentFileAbs)
 	for lcImportIdent, lcImport := range lcProg.Imports {
 		absImportPath := ""
@@ -71,7 +73,7 @@ func lnkGatherSrcFilesCore(currentFileAbs string, ball *LnkProcessedBall) (errFi
 		} else {
 			absImportPath = filepath.Join(fileAbsDir, lcImport.ImportSrcLocationString.Data)
 		}
-		modifiedImports[lcImportIdent] = LnkImport{
+		modifiedImports[lcImportIdent] = LnkImportStmt{
 			ImportSrcLocationString:         lcImport.ImportSrcLocationString,
 			ImportedAsIdent:                 lcImport.ImportedAsIdent,
 			ImportSrcLocationAbsoluteString: absImportPath,

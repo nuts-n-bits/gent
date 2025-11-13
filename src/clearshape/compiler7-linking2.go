@@ -38,8 +38,49 @@ func lnkResolveImports(ball LnkProcessedBall) (LnkResolvedFlatProgram, error) {
 	if !exists {
 		panic(fmt.Sprintf("shouldn't really happen - starting program not defined: %s", ball.StartingProgram))
 	}
-	for tldIdent, tldValue := range startingProgram.TopLevelDefs {
-		lnkResolveImportsTltCore(tldValue, &flatProg)
+	for lcTltIdent, lcTltValue := range startingProgram.TopLevelDefs {
+		if lcTltValue.OneofBuiltin != nil {
+			lnkTlt := LnkTopLevelType{OneofBuiltin: lcTltValue.OneofBuiltin}
+			flatProg.Types = append(flatProg.Types, lnkTlt)
+		} else if lcTltValue.OneofImported != nil {
+			importAsIdent := lcTltValue.OneofImported.ImportedIdent.Data
+			importedFileLnkImportData, has := startingProgram.Imports[importAsIdent]
+			if !has {
+				panic("shouldnt really happen")
+			}
+			importedFileAbsPath := importedFileLnkImportData.ImportSrcLocationAbsoluteString
+			importedProgram, has := lnkBall.AllPrograms[importedFileAbsPath]
+			if !has {
+				panic("shouldnt really happen")
+			}
+			importForeignIdent := lcTltValue.OneofImported.ForeignIdent.Data
+			importedTld, has := importedProgram.TopLevelDefs[importForeignIdent] 
+			if !has {
+				return &lcTltValue.OneofImported.ForeignIdent, 
+				fmt.Errorf("undefined foreign identifier %s", importForeignIdent)
+			}
+			newName := nameMint([]string{"import", importAsIdent, importForeignIdent})
+		} else if lcTltValue.OneofListof != nil {
+			// TODO
+
+		} else if lcTltValue.OneofMapof != nil {
+			// TODO
+
+		} else if lcTltValue.OneofTokenIdent != nil {
+			lnkTlt := LnkTopLevelType{OneofTokenIdent: lcTltValue.OneofTokenIdent}
+			flatProg.Types = append(flatProg.Types, lnkTlt)
+		} else if lcTltValue.OneofTopLevelEnum != nil {
+			// TODO
+
+		} else if lcTltValue.OneofTopLevelStruct != nil {
+			// TODO
+
+		} else if lcTltValue.OneofTopLevelTuple != nil {
+			// TODO
+
+		} else {
+			panic("unreachable")
+		}	
 	}
 }
 
@@ -49,48 +90,7 @@ func lnkResolveImportsTltCore(
 	lnkBall LnkProcessedBall, 
 	flatProg *LnkResolvedFlatProgram,
 ) (errTok *Token, err error) {
-	if currentLcTlt.OneofBuiltin != nil {
-		lnkTlt := LnkTopLevelType{OneofBuiltin: currentLcTlt.OneofBuiltin}
-		flatProg.Types = append(flatProg.Types, lnkTlt)
-	} else if currentLcTlt.OneofImported != nil {
-		importAsIdent := currentLcTlt.OneofImported.ImportedIdent.Data
-		importedFileLnkImportData, has := currentLnkProg.Imports[importAsIdent]
-		if !has {
-			panic("shouldnt really happen")
-		}
-		importedFileAbsPath := importedFileLnkImportData.ImportSrcLocationAbsoluteString
-		importedProgram, has := lnkBall.AllPrograms[importedFileAbsPath]
-		if !has {
-			panic("shouldnt really happen")
-		}
-		importForeignIdent := currentLcTlt.OneofImported.ForeignIdent.Data
-		importedTld, has := importedProgram.TopLevelDefs[importForeignIdent] 
-		if !has {
-			return &currentLcTlt.OneofImported.ForeignIdent, 
-			fmt.Errorf("undefined foreign identifier %s", importForeignIdent)
-		}
-		nameMint([]string{})
-	} else if currentLcTlt.OneofListof != nil {
-		// TODO
 
-	} else if currentLcTlt.OneofMapof != nil {
-		// TODO
-
-	} else if currentLcTlt.OneofTokenIdent != nil {
-		lnkTlt := LnkTopLevelType{OneofTokenIdent: currentLcTlt.OneofTokenIdent}
-		flatProg.Types = append(flatProg.Types, lnkTlt)
-	} else if currentLcTlt.OneofTopLevelEnum != nil {
-		// TODO
-
-	} else if currentLcTlt.OneofTopLevelStruct != nil {
-		// TODO
-
-	} else if currentLcTlt.OneofTopLevelTuple != nil {
-		// TODO
-
-	} else {
-		panic("unreachable")
-	}	
 }
 
 func lnkResolveImportsCore(lcType LcTypeExpr, flatProg *LnkResolvedFlatProgram) {
