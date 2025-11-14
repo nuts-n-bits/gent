@@ -26,45 +26,79 @@ type LnkTokenErr1 struct {
 	Err      error `json:"err"`
 }
 
-type LnkSingleProgram struct {
-	FileAbsPath  string                    `json:"fileAbsPath"`  // The absolute path of the file that the LcProgram is generated from
-	FileAbsDir   string                    `json:"fileAbsDir"`   // The absolute path of the directory of which the file resides
-	Imports      map[string]LnkImportStmt  `json:"imports"`      // Imports is keyed by ident string without normalization
-	TopLevelDefs map[string]LcTopLevelType `json:"topLevelDefs"` // these idents should be normalized to PascalCase
+type Lnk1SingleProgram struct {
+	FileAbsPath  string                      `json:"fileAbsPath"`  // The absolute path of the file that the LcProgram is generated from
+	FileAbsDir   string                      `json:"fileAbsDir"`   // The absolute path of the directory of which the file resides
+	Imports      map[string]Lnk1ImportStmt   `json:"imports"`      // Imports is keyed by ident string without normalization
+	TopLevelDefs map[string]Lnk1TopLevelType `json:"topLevelDefs"` // these idents should be normalized to PascalCase
 }
 
-type LnkImportStmt struct {
+type Lnk1ImportStmt struct {
 	ImportSrcLocationString         Token  `json:"importSrcLocationString"`
 	ImportedAsIdent                 Token  `json:"importedAsIdent"`
 	ImportSrcLocationAbsoluteString string `json:"importSrcLocationAbsoluteString"`
 }
 
-type LnkProcessedBall struct {
-	AllPrograms     map[string]LnkSingleProgram `json:"allPrograms"`     // AllPrograms is keyed by the absolute path of the program
-	StartingProgram string                      `json:"startingProgram"` // StartingProgram is a string that points to the starting program in the AllPrograms map
+type Lnk1ProcessedBall struct {
+	AllPrograms     map[string]Lnk1SingleProgram `json:"allPrograms"`     // AllPrograms is keyed by the absolute path of the program
+	StartingProgram string                       `json:"startingProgram"` // StartingProgram is a string that points to the starting program in the AllPrograms map
+}
+
+type Lnk1TopLevelType struct {
+	OneofTopLevelStruct *[]Lnk1StructOrEnumLine `json:"topLevelStruct,omitempty"`
+	OneofTopLevelEnum   *[]Lnk1StructOrEnumLine `json:"topLevelEnum,omitempty"`
+	OneofTopLevelTuple  *[]Lnk1TypeExpr         `json:"topLevelTuple,omitempty"`
+	OneofTokenIdent     *Token                  `json:"tokenIdent,omitempty"`
+	OneofBuiltin        *BuiltinType            `json:"builtin,omitempty"`
+	OneofListof         *Lnk1TypeExpr           `json:"listOf,omitempty"`
+	OneofMapof          *Lnk1TypeExpr           `json:"mapOf,omitempty"`
+	OneofImported       *Lnk1Imported           `json:"imported,omitempty"`
+}
+
+type Lnk1TypeExpr struct {
+	OneofMintedIdent *string       `json:"mintedIdent,omitempty"`
+	OneofTokenIdent  *Token        `json:"TokenIdent,omitempty"`
+	OneofBuiltin     *BuiltinType  `json:"builtin,omitempty"`
+	OneofImported    *Lnk1Imported `json:"imported,omitempty"`
+	OneofListof      *Lnk1TypeExpr `json:"listOf,omitempty"`
+	OneofMapof       *Lnk1TypeExpr `json:"mapOf,omitempty"`
+}
+
+type Lnk1Imported struct {
+	ImportedIdent                   Token  `json:"importedIdent"`
+	ForeignIdent                    Token  `json:"foreignIdent"`
+	ImportSrcLocationAbsoluteString string `json:"ImportSrcLocationAbsoluteString"`
+}
+
+type Lnk1StructOrEnumLine struct {
+	WireName   string       `json:"wireName"`
+	ProgName   []string     `json:"progName"`
+	TypeExpr   Lnk1TypeExpr `json:"typeExpr"`
+	Omittable  bool         `json:"omittable"` // this is ignored when its an enum line
+	IsReserved bool         `json:"isReserved"`
 }
 
 // start: the starting path, which is a relative path (relative to current wdr) of the file
-func lnkGatherSrcFiles(start string) (ret LnkProcessedBall, errFilePath string, lnkErr *LnkErrorUnion) {
+func lnkGatherSrcFiles(start string) (ret Lnk1ProcessedBall, errFilePath string, lnkErr *LnkErrorUnion) {
 	absStart, err := filepath.Abs(start)
 	if err != nil {
-		return LnkProcessedBall{}, start, &LnkErrorUnion{OneofReadfileErr: err}
+		return Lnk1ProcessedBall{}, start, &LnkErrorUnion{OneofReadfileErr: err}
 	}
-	lnkBall := LnkProcessedBall{AllPrograms: make(map[string]LnkSingleProgram, 0), StartingProgram: absStart}
+	lnkBall := Lnk1ProcessedBall{AllPrograms: make(map[string]Lnk1SingleProgram, 0), StartingProgram: absStart}
 	errFilePath, lnkErr = lnkGatherSrcFilesCore(absStart, &lnkBall)
 	if lnkErr != nil {
-		return LnkProcessedBall{}, errFilePath, lnkErr
+		return Lnk1ProcessedBall{}, errFilePath, lnkErr
 	}
 	return lnkBall, "", nil
 }
 
 // this function expects absolute path
-func lnkGatherSrcFilesCore(currentFileAbs string, ball *LnkProcessedBall) (errFilePath string, lnkErr *LnkErrorUnion) {
+func lnkGatherSrcFilesCore(currentFileAbs string, ball *Lnk1ProcessedBall) (errFilePath string, lnkErr *LnkErrorUnion) {
 	lcProg, lnkErr := lnkAbsPathToLcProgram(currentFileAbs)
 	if lnkErr != nil {
 		return currentFileAbs, lnkErr
 	}
-	modifiedImports := map[string]LnkImportStmt{}
+	modifiedImports := map[string]Lnk1ImportStmt{}
 	fileAbsDir := filepath.Dir(currentFileAbs)
 	for lcImportIdent, lcImport := range lcProg.Imports {
 		absImportPath := ""
@@ -73,17 +107,21 @@ func lnkGatherSrcFilesCore(currentFileAbs string, ball *LnkProcessedBall) (errFi
 		} else {
 			absImportPath = filepath.Join(fileAbsDir, lcImport.ImportSrcLocationString.Data)
 		}
-		modifiedImports[lcImportIdent] = LnkImportStmt{
+		modifiedImports[lcImportIdent] = Lnk1ImportStmt{
 			ImportSrcLocationString:         lcImport.ImportSrcLocationString,
 			ImportedAsIdent:                 lcImport.ImportedAsIdent,
 			ImportSrcLocationAbsoluteString: absImportPath,
 		}
 	}
-	lnkProg := LnkSingleProgram{
+	modifierdLcTlt := map[string]Lnk1TopLevelType{}
+	for lcTltIdent, lcTlt := range lcProg.TopLevelDefs {
+		modifierdLcTlt[lcTltIdent] = lnkAddAbsPathToTlt(lcTlt)
+	}
+	lnkProg := Lnk1SingleProgram{
 		FileAbsPath:  currentFileAbs,
 		FileAbsDir:   fileAbsDir,
 		Imports:      modifiedImports,
-		TopLevelDefs: lcProg.TopLevelDefs,
+		TopLevelDefs: modifierdLcTlt,
 	}
 	ball.AllPrograms[currentFileAbs] = lnkProg
 	for _, lnkImport := range lnkProg.Imports {
@@ -96,6 +134,48 @@ func lnkGatherSrcFilesCore(currentFileAbs string, ball *LnkProcessedBall) (errFi
 		}
 	}
 	return "", nil
+}
+
+func lnkAddAbsPathToTlt(lcTlt LcTopLevelType) Lnk1TopLevelType {
+	if lcTlt.OneofTopLevelStruct != nil {
+
+	} else if lcTlt.OneofTopLevelEnum != nil {
+
+	} else if lcTlt.OneofTopLevelTuple != nil {
+
+	} else if lcTlt.OneofTokenIdent != nil {
+
+	} else if lcTlt.OneofBuiltin != nil {
+
+	} else if lcTlt.OneofListof != nil {
+
+	} else if lcTlt.OneofMapof != nil {
+
+	} else if lcTlt.OneofImported != nil {
+
+	} else {
+		panic("unreachable")
+	}
+}
+
+func lnkAddAbsPathToTypeExpr(lcTe LcTypeExpr) Lnk1TypeExpr {
+	if lcTe.OneofMintedIdent != nil {
+		return Lnk1TypeExpr{OneofMintedIdent: lcTe.OneofMintedIdent}
+	} else if lcTe.OneofTokenIdent != nil {
+		return Lnk1TypeExpr{OneofTokenIdent: lcTe.OneofTokenIdent}
+	} else if lcTe.OneofBuiltin != nil {
+		return Lnk1TypeExpr{OneofBuiltin: lcTe.OneofBuiltin}
+	} else if lcTe.OneofImported != nil {
+		
+	} else if lcTe.OneofListof != nil {
+		t := lnkAddAbsPathToTypeExpr(*lcTe.OneofListof)
+		return Lnk1TypeExpr{OneofListof: &t}
+	} else if lcTe.OneofMapof != nil {
+		t := lnkAddAbsPathToTypeExpr(*lcTe.OneofMapof)
+		return Lnk1TypeExpr{OneofMapof: &t}
+	} else {
+		panic("unreachable")
+	}
 }
 
 func lnkAbsPathToLcProgram(pathStr string) (LcProgram, *LnkErrorUnion) {
