@@ -1,0 +1,5 @@
+in this branch, we try to delay the flt operation. since the flt pass segregates the type expressions into TopLevelType
+and TypeExpr, it complicates later operations, and forces minting of new top level symbols repeatedly.
+
+if we could delay flt after we have finished localcheck and linking, then at least at the linking stage, the linker 
+could make heavy use of anonymous type definitions which simplifies their jobs massively.
