@@ -7,13 +7,13 @@ type LnkProgram struct {
 }
 
 type LnkTypeExpr struct {
-	OneofStruct     *[]LnkStructOrEnumLine `json:"struct,omitempty"`
-	OneofEnum       *[]LnkStructOrEnumLine `json:"enum,omitempty"`
-	OneofTuple      *[]LnkTypeExpr         `json:"tuple,omitempty"`
-	OneofTokenIdent *Token                 `json:"tokenIdent,omitempty"`
 	OneofBuiltin    *BuiltinType           `json:"builtin,omitempty"`
+	OneofEnum       *[]LnkStructOrEnumLine `json:"enum,omitempty"`
 	OneofListof     *LnkTypeExpr           `json:"listOf,omitempty"`
 	OneofMapof      *LnkTypeExpr           `json:"mapOf,omitempty"`
+	OneofStruct     *[]LnkStructOrEnumLine `json:"struct,omitempty"`
+	OneofTokenIdent *Token                 `json:"tokenIdent,omitempty"`
+	OneofTuple      *[]LnkTypeExpr         `json:"tuple,omitempty"`
 }
 
 type LnkStructOrEnumLine struct {
