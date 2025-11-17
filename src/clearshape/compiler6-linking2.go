@@ -7,9 +7,9 @@ type LnkProgram struct {
 }
 
 type LnkTypeExpr struct {
-	OneofStruct     *[]LnkStructOrEnumLine `json:"topLevelStruct,omitempty"`
-	OneofEnum       *[]LnkStructOrEnumLine `json:"topLevelEnum,omitempty"`
-	OneofTuple      *[]LnkTypeExpr         `json:"topLevelTuple,omitempty"`
+	OneofStruct     *[]LnkStructOrEnumLine `json:"struct,omitempty"`
+	OneofEnum       *[]LnkStructOrEnumLine `json:"enum,omitempty"`
+	OneofTuple      *[]LnkTypeExpr         `json:"tuple,omitempty"`
 	OneofTokenIdent *Token                 `json:"tokenIdent,omitempty"`
 	OneofBuiltin    *BuiltinType           `json:"builtin,omitempty"`
 	OneofListof     *LnkTypeExpr           `json:"listOf,omitempty"`
@@ -25,7 +25,7 @@ type LnkStructOrEnumLine struct {
 }
 
 func lnkResolveImports(ball LnkProcessedBall) (LnkProgram, *Token, error) {
-	lnkProg := LnkProgram{}
+	lnkProg := LnkProgram{Types: map[string]LnkTypeExpr{}}
 	startingProgram, exists := ball.AllPrograms[ball.StartingProgram]
 	if !exists {
 		panic(fmt.Sprintf("shouldn't really happen - starting program not defined: %s", ball.StartingProgram))
