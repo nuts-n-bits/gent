@@ -23,13 +23,13 @@ type ArSync = {
         t timestamp: enum {
             i isoTimestamp: [string, i64],
             u unixTimestampMillis: u64,
-        }
+        },
         u userid: string,
         n username: string,
         s editSummary: string[],
         c content: enum {
             s string: string,
-            l segmentList: map(string),
+            l segmentList: [string[], map(string)],
         }
     }
 }
