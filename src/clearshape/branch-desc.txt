@@ -3,3 +3,4 @@ and TypeExpr, it complicates later operations, and forces minting of new top lev
 
 if we could delay flt after we have finished localcheck and linking, then at least at the linking stage, the linker 
 could make heavy use of anonymous type definitions which simplifies their jobs massively.
+

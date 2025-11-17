@@ -27,10 +27,10 @@ type LnkTokenErr1 struct {
 }
 
 type LnkSingleProgram struct {
-	FileAbsPath  string                    `json:"fileAbsPath"`  // The absolute path of the file that the LcProgram is generated from
-	FileAbsDir   string                    `json:"fileAbsDir"`   // The absolute path of the directory of which the file resides
-	Imports      map[string]LnkImportStmt  `json:"imports"`      // Imports is keyed by ident string without normalization
-	TopLevelDefs map[string]LcTopLevelType `json:"topLevelDefs"` // these idents should be normalized to PascalCase
+	FileAbsPath  string                   `json:"fileAbsPath"`  // The absolute path of the file that the LcProgram is generated from
+	FileAbsDir   string                   `json:"fileAbsDir"`   // The absolute path of the directory of which the file resides
+	Imports      map[string]LnkImportStmt `json:"imports"`      // Imports is keyed by ident string without normalization
+	TopLevelDefs map[string]LcTypeExpr    `json:"topLevelDefs"` // these idents should be normalized to PascalCase
 }
 
 type LnkImportStmt struct {
@@ -111,12 +111,11 @@ func lnkAbsPathToLcProgram(pathStr string) (LcProgram, *LnkErrorUnion) {
 	if err != nil {
 		return LcProgram{}, &LnkErrorUnion{OneofParseErr: &LnkTokenErr1{ErrToken: tokens[errI], Err: err}}
 	}
-	fltProgram := fltFlattenProgram(astProgram)
-	errT, err := lcCheckProgram1Of2CheckReservedName(fltProgram)
+	errT, err := lcCheckProgram1Of2CheckReservedName(astProgram)
 	if err != nil {
 		return LcProgram{}, &LnkErrorUnion{OneofReservedNameErr: &LnkTokenErr1{ErrToken: *errT, Err: err}}
 	}
-	lcprog, collision, undef := lcCheckProgram2Of2CheckCollisionAndUndefined(fltProgram)
+	lcprog, collision, undef := lcCheckProgram2Of2CheckCollisionAndUndefined(astProgram)
 	if len(collision) > 0 {
 		return LcProgram{}, &LnkErrorUnion{OneofLcCollisionErr: &collision}
 	}
