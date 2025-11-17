@@ -230,24 +230,34 @@ func show_lnk_ball(args ProgramCliParameters) {
 	if err1 != nil {
 		log.Fatalf("Cannot json marshal linked ball")
 	}
-	log.Printf("\n\n\nLNK\n%s", str)
+	log.Printf("\n\n\nLNK-BALL\n%s", str)
 }
 
-// func show_lnk_uni(args ProgramCliParameters) {
-// 	if len(args.rest) == 0 {
-// 		log.Fatal("ERR: No input file")
-// 	} else if len(args.rest) > 1 {
-// 		log.Fatal("ERR: Multiple input file")
-// 	}
-// 	linkedBall, errPath, err := lnkGatherSrcFiles(args.rest[0])
-// 	if err != nil {
-// 		log.Fatalf("In file %s, encountered error: %s", errPath, err.ErrToStr())
-// 	}
-// 	flatProg, err := lnkResolveImports(linkedBall)
-// 	if err != nil {
-		
-// 	}
-// }
+func show_lnk(args ProgramCliParameters) {
+	if len(args.rest) == 0 {
+		log.Fatal("ERR: No input file")
+	} else if len(args.rest) > 1 {
+		log.Fatal("ERR: Multiple input file")
+	}
+	linkedBall, errPath, errU := lnkGatherSrcFiles(args.rest[0])
+	if errU != nil {
+		errDesc, mErr := json.Marshal(errU)
+		if mErr != nil {
+			panic("shouldn't really happen")
+		}
+		log.Fatalf("In file %s, encountered error: %s (%s)", errPath, errU.ErrToStr(), errDesc)
+	}
+	str, err := json.Marshal(linkedBall)
+	if err != nil {
+		log.Fatalf("Cannot json marshal linked ball")
+	}
+	log.Printf("\n\n\nLNK-BALL\n%s", str)
+	lnkProgram, errT, err := lnkResolveImports(linkedBall)
+	if err != nil {
+		log.Fatalf("ERR: %s (at %#v)", err.Error(), errT)
+	}
+	fmt.Printf("\n\n\nLC\n%s", lnkProgram.DebugString())
+}
 
 func main() {
 
@@ -266,7 +276,7 @@ func main() {
 		show_lc(args)
 	} else if args.verb == "show-lnk-ball" {
 		show_lnk_ball(args)
-	} else if args.verb == "show-lnk-uni" {
-		//show_lnk_uni(args)
+	} else if args.verb == "show-lnk" {
+		show_lnk(args)
 	}
 }

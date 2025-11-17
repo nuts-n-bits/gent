@@ -18,3 +18,8 @@ func (lc *LcProgram) DebugString() string{
 	a, _ := json.Marshal(lc)
 	return string(a)
 }
+
+func (lnk *LnkProgram) DebugString() string{
+	a, _ := json.Marshal(lnk)
+	return string(a)
+}
