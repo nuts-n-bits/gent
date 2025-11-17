@@ -256,7 +256,7 @@ func show_lnk(args ProgramCliParameters) {
 	if err != nil {
 		log.Fatalf("ERR: %s (at %#v)", err.Error(), errT)
 	}
-	fmt.Printf("\n\n\nLC\n%s", lnkProgram.DebugString())
+	fmt.Printf("\n\n\nLNK\n%s", lnkProgram.DebugString())
 }
 
 func main() {
@@ -279,4 +279,6 @@ func main() {
 	} else if args.verb == "show-lnk" {
 		show_lnk(args)
 	}
+
+	fmt.Printf("\n\n")
 }
