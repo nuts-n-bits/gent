@@ -265,7 +265,7 @@ func lcTypeConvertNoCheck(astType AstTypeExpr) LcTypeExpr {
 		return LcTypeExpr{OneofStruct: &t}
 	} else if astType.OneofEnumDef != nil {
 		t := lcStructOrEnumLineConvertNoCheck(*astType.OneofEnumDef)
-		return LcTypeExpr{OneofStruct: &t}
+		return LcTypeExpr{OneofEnum: &t}
 	} else if astType.OneofTupleDef != nil {
 		t := lcTupleConvertNoCheck(*astType.OneofTupleDef)
 		return LcTypeExpr{OneofTuple: &t}
