@@ -26,45 +26,45 @@ type LnkTokenErr1 struct {
 	Err      error `json:"err"`
 }
 
-type LnkSingleProgram struct {
-	FileAbsPath  string                   `json:"fileAbsPath"`  // The absolute path of the file that the LcProgram is generated from
-	FileAbsDir   string                   `json:"fileAbsDir"`   // The absolute path of the directory of which the file resides
-	Imports      map[string]LnkImportStmt `json:"imports"`      // Imports is keyed by ident string without normalization
-	TopLevelDefs map[string]LcTypeExpr    `json:"topLevelDefs"` // these idents should be normalized to PascalCase
+type LnkBallSingleProgram struct {
+	FileAbsPath  string                       `json:"fileAbsPath"`  // The absolute path of the file that the LcProgram is generated from
+	FileAbsDir   string                       `json:"fileAbsDir"`   // The absolute path of the directory of which the file resides
+	Imports      map[string]LnkBallImportStmt `json:"imports"`      // Imports is keyed by ident string without normalization
+	TopLevelDefs map[string]LcTypeExpr        `json:"topLevelDefs"` // these idents should be normalized to PascalCase
 }
 
-type LnkImportStmt struct {
+type LnkBallImportStmt struct {
 	ImportSrcLocationString         Token  `json:"importSrcLocationString"`
 	ImportedAsIdent                 Token  `json:"importedAsIdent"`
 	ImportSrcLocationAbsoluteString string `json:"importSrcLocationAbsoluteString"`
 }
 
-type LnkProcessedBall struct {
-	AllPrograms     map[string]LnkSingleProgram `json:"allPrograms"`     // AllPrograms is keyed by the absolute path of the program
-	StartingProgram string                      `json:"startingProgram"` // StartingProgram is a string that points to the starting program in the AllPrograms map
+type LnkBall struct {
+	AllPrograms     map[string]LnkBallSingleProgram `json:"allPrograms"`     // AllPrograms is keyed by the absolute path of the program
+	StartingProgram string                          `json:"startingProgram"` // StartingProgram is a string that points to the starting program in the AllPrograms map
 }
 
 // start: the starting path, which is a relative path (relative to current wdr) of the file
-func lnkGatherSrcFiles(start string) (ret LnkProcessedBall, errFilePath string, lnkErr *LnkErrorUnion) {
+func lnkGatherSrcFiles(start string) (ret LnkBall, errFilePath string, lnkErr *LnkErrorUnion) {
 	absStart, err := filepath.Abs(start)
 	if err != nil {
-		return LnkProcessedBall{}, start, &LnkErrorUnion{OneofReadfileErr: err}
+		return LnkBall{}, start, &LnkErrorUnion{OneofReadfileErr: err}
 	}
-	lnkBall := LnkProcessedBall{AllPrograms: make(map[string]LnkSingleProgram, 0), StartingProgram: absStart}
+	lnkBall := LnkBall{AllPrograms: make(map[string]LnkBallSingleProgram, 0), StartingProgram: absStart}
 	errFilePath, lnkErr = lnkGatherSrcFilesCore(absStart, &lnkBall)
 	if lnkErr != nil {
-		return LnkProcessedBall{}, errFilePath, lnkErr
+		return LnkBall{}, errFilePath, lnkErr
 	}
 	return lnkBall, "", nil
 }
 
 // this function expects absolute path
-func lnkGatherSrcFilesCore(currentFileAbs string, ball *LnkProcessedBall) (errFilePath string, lnkErr *LnkErrorUnion) {
+func lnkGatherSrcFilesCore(currentFileAbs string, ball *LnkBall) (errFilePath string, lnkErr *LnkErrorUnion) {
 	lcProg, lnkErr := lnkAbsPathToLcProgram(currentFileAbs)
 	if lnkErr != nil {
 		return currentFileAbs, lnkErr
 	}
-	modifiedImports := map[string]LnkImportStmt{}
+	modifiedImports := map[string]LnkBallImportStmt{}
 	fileAbsDir := filepath.Dir(currentFileAbs)
 	for lcImportIdent, lcImport := range lcProg.Imports {
 		absImportPath := ""
@@ -73,13 +73,13 @@ func lnkGatherSrcFilesCore(currentFileAbs string, ball *LnkProcessedBall) (errFi
 		} else {
 			absImportPath = filepath.Join(fileAbsDir, lcImport.ImportSrcLocationString.Data)
 		}
-		modifiedImports[lcImportIdent] = LnkImportStmt{
+		modifiedImports[lcImportIdent] = LnkBallImportStmt{
 			ImportSrcLocationString:         lcImport.ImportSrcLocationString,
 			ImportedAsIdent:                 lcImport.ImportedAsIdent,
 			ImportSrcLocationAbsoluteString: absImportPath,
 		}
 	}
-	lnkProg := LnkSingleProgram{
+	lnkProg := LnkBallSingleProgram{
 		FileAbsPath:  currentFileAbs,
 		FileAbsDir:   fileAbsDir,
 		Imports:      modifiedImports,

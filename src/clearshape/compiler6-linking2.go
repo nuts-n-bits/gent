@@ -24,7 +24,7 @@ type LnkStructOrEnumLine struct {
 	IsReserved bool        `json:"isReserved"`
 }
 
-func lnkResolveImports(ball LnkProcessedBall) (LnkProgram, *Token, error) {
+func lnkResolveImports(ball LnkBall) (LnkProgram, *Token, error) {
 	lnkProg := LnkProgram{Types: map[string]LnkTypeExpr{}}
 	startingProgram, exists := ball.AllPrograms[ball.StartingProgram]
 	if !exists {
@@ -40,7 +40,7 @@ func lnkResolveImports(ball LnkProcessedBall) (LnkProgram, *Token, error) {
 	return lnkProg, nil, nil
 }
 
-func lnkResolveTypeCore(lcType LcTypeExpr, currentProgram LnkSingleProgram, lnkBall *LnkProcessedBall) (LnkTypeExpr, *Token, error) {
+func lnkResolveTypeCore(lcType LcTypeExpr, currentProgram LnkBallSingleProgram, lnkBall *LnkBall) (LnkTypeExpr, *Token, error) {
 	if lcType.OneofBuiltin != nil {
 		return LnkTypeExpr{OneofBuiltin: lcType.OneofBuiltin}, nil, nil
 	} else if lcType.OneofEnum != nil {
@@ -99,9 +99,9 @@ func lnkResolveTypeCore(lcType LcTypeExpr, currentProgram LnkSingleProgram, lnkB
 }
 
 func lnkResolveLcStructOrEnum(
-	lines []LcStructOrEnumLine, 
-	currentProgram LnkSingleProgram, 
-	lnkBall *LnkProcessedBall,
+	lines []LcStructOrEnumLine,
+	currentProgram LnkBallSingleProgram,
+	lnkBall *LnkBall,
 ) ([]LnkStructOrEnumLine, *Token, error) {
 	coll := []LnkStructOrEnumLine{}
 	for _, lcLine := range lines {
@@ -110,10 +110,10 @@ func lnkResolveLcStructOrEnum(
 			return []LnkStructOrEnumLine{}, errT, err
 		}
 		lnkLine := LnkStructOrEnumLine{
-			WireName: lcLine.WireName,
-			ProgName: lcLine.ProgName,
-			TypeExpr: lnkType,
-			Omittable: lcLine.Omittable,
+			WireName:   lcLine.WireName,
+			ProgName:   lcLine.ProgName,
+			TypeExpr:   lnkType,
+			Omittable:  lcLine.Omittable,
 			IsReserved: lcLine.IsReserved,
 		}
 		coll = append(coll, lnkLine)
@@ -122,9 +122,9 @@ func lnkResolveLcStructOrEnum(
 }
 
 func lnkResolveLcTuple(
-	lcTypes []LcTypeExpr, 
-	currentProgram LnkSingleProgram, 
-	lnkBall *LnkProcessedBall,
+	lcTypes []LcTypeExpr,
+	currentProgram LnkBallSingleProgram,
+	lnkBall *LnkBall,
 ) ([]LnkTypeExpr, *Token, error) {
 	coll := []LnkTypeExpr{}
 	for _, lctype := range lcTypes {
