@@ -151,30 +151,6 @@ func show_ast(args ProgramCliParameters) {
 	fmt.Printf("\n\n\nAST\n%s", program.DebugString())
 }
 
-func show_flt(args ProgramCliParameters) {
-	if len(args.rest) == 0 {
-		log.Fatal("ERR: No input file")
-	} else if len(args.rest) > 1 {
-		log.Fatal("ERR: Multiple input file")
-	}
-	programStr, err := readFile(args.rest[0])
-	if err != nil {
-		log.Fatalf("ERR: %s", err.Error())
-	}
-	tokens, errI, err := lexTokenizer(programStr)
-	if err != nil {
-		log.Fatalf("ERR: %s (at %#v)", err.Error(), tokens[errI])
-	}
-	fmt.Printf("TOK\n%#v", tokens)
-	program, errI, err := rdParseProgram(tokens)
-	if err != nil {
-		log.Fatalf("ERR: %s (at %#v)", err.Error(), tokens[errI])
-	}
-	fmt.Printf("\n\n\nAST\n%s", program.DebugString())
-	programFlt := fltFlattenProgram(program)
-	fmt.Printf("\n\n\nFLT\n%s", programFlt.DebugString())
-}
-
 func show_lc(args ProgramCliParameters) {
 	if len(args.rest) == 0 {
 		log.Fatal("ERR: No input file")
@@ -258,6 +234,35 @@ func show_lnk(args ProgramCliParameters) {
 	}
 	fmt.Printf("\n\n\nLNK\n%s", lnkProgram.DebugString())
 }
+
+func show_flt(args ProgramCliParameters) {
+	if len(args.rest) == 0 {
+		log.Fatal("ERR: No input file")
+	} else if len(args.rest) > 1 {
+		log.Fatal("ERR: Multiple input file")
+	}
+	linkedBall, errPath, errU := lnkGatherSrcFiles(args.rest[0])
+	if errU != nil {
+		errDesc, mErr := json.Marshal(errU)
+		if mErr != nil {
+			panic("shouldn't really happen")
+		}
+		log.Fatalf("In file %s, encountered error: %s (%s)", errPath, errU.ErrToStr(), errDesc)
+	}
+	str, err := json.Marshal(linkedBall)
+	if err != nil {
+		log.Fatalf("Cannot json marshal linked ball")
+	}
+	log.Printf("\n\n\nLNK-BALL\n%s", str)
+	lnkProgram, errT, err := lnkResolveImports(linkedBall)
+	if err != nil {
+		log.Fatalf("ERR: %s (at %#v)", err.Error(), errT)
+	}
+	fmt.Printf("\n\n\nLNK\n%s", lnkProgram.DebugString())
+	fltProgram := fltFlattenProgram(lnkProgram)
+	fmt.Printf("\n\n\nFLT\n%s", fltProgram.DebugString())
+}
+
 
 func main() {
 

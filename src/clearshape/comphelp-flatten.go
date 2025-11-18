@@ -65,7 +65,7 @@ func copyAppend(ss []string, s string) []string {
 }
 
 func fltFlattenProgram(lnkProgram LnkProgram) FltProgram {
-	ret := FltProgram{}
+	ret := FltProgram{TopTypes: map[string]FltTopLevelTypeExpr{}}
 	for topLevelIdent, typeExpr := range lnkProgram.Types {
 		selfTLT, addedTLT := fltSerializeTop(topLevelIdent, typeExpr)
 		fltMergeMaps(&ret.TopTypes, map[string]FltTopLevelTypeExpr{topLevelIdent: selfTLT})
