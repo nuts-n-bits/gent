@@ -81,53 +81,56 @@ func writeFile(fileName string, fileContent string) error {
 	return os.WriteFile(fileName, []byte(fileContent), 0666)
 }
 
-// func build(args ProgramCliParameters) {
-// 	if len(args.rest) == 0 {
-// 		log.Fatal("ERR: No input file");
-// 	} else if len(args.rest) > 1 {
-// 		log.Fatal("ERR: Multiple input file");
-// 	}
-// 	programStr, err := readFile(args.rest[0]);
-// 	if err != nil {
-// 		log.Fatalf("ERR: %s", err.Error());
-// 	}
-// 	tokens, err, errI := lexTokenizer(programStr);
-// 	if err != nil {
-// 		log.Fatalf("ERR: %s (at %d-%d)", err.Error(), tokens[errI].start, tokens[errI].end);
-// 	}
-// 	program, errI, err := rdParseProgram(tokens);
-// 	if err != nil {
-// 		log.Fatalf("ERR: %s (at %d-%d)", err.Error(), tokens[errI].start, tokens[errI].end);
-// 	}
-// 	checked, errT, err := chkProgram(program);
-// 	if err != nil {
-// 		log.Fatalf("ERR: %s (at %d-%d)", err.Error(), errT.start, errT.end);
-// 	}
-// 	// parsing complete
-// 	indent := "";
-// 	switch args.indent {
-// 	case "", "4":
-// 		indent = "    ";
-// 	case "tab":
-// 		indent = "\t";
-// 	case "2":
-// 		indent = "  ";
-// 	default:
-// 		log.Fatal("--indent must be `4`, `2`, `tab` or unspecified");
-// 	}
-// 	//
-// 	if args.tsOut != "" {
-// 		program := cgProgramTypescript(checked, indent);
-// 		writeFile(args.tsOut, program);
-// 	}
-// 	if args.goOut != "" {
-// 		if args.goPackageName == "" {
-// 			log.Fatal("--go-package-name must be present when --go-out is specified");
-// 		}
-// 		program := cgProgramGolang(checked, indent, args.goPackageName);
-// 		writeFile(args.goOut, program);
-// 	}
-// }
+func build(args ProgramCliParameters) {
+	if len(args.rest) == 0 {
+		log.Fatal("ERR: No input file")
+	} else if len(args.rest) > 1 {
+		log.Fatal("ERR: Multiple input file")
+	}
+	linkedBall, errPath, errU := lnkGatherSrcFiles(args.rest[0])
+	if errU != nil {
+		errDesc, mErr := json.Marshal(errU)
+		if mErr != nil {
+			panic("shouldn't really happen")
+		}
+		log.Fatalf("In file %s, encountered error: %s (%s)", errPath, errU.ErrToStr(), errDesc)
+	}
+	str, err := json.Marshal(linkedBall)
+	if err != nil {
+		log.Fatalf("Cannot json marshal linked ball")
+	}
+	log.Printf("\n\n\nLNK-BALL\n%s", str)
+	lnkProgram, errT, err := lnkResolveImports(linkedBall)
+	if err != nil {
+		log.Fatalf("ERR: %s (at %#v)", err.Error(), errT)
+	}
+	fmt.Printf("\n\n\nLNK\n%s", lnkProgram.DebugString())
+	// parsing complete
+	indent := "";
+	switch args.indent {
+	case "", "4":
+		indent = "    ";
+	case "tab":
+		indent = "\t";
+	case "2":
+		indent = "  ";
+	default:
+		log.Fatal("--indent must be `4`, `2`, `tab` or unspecified");
+	}
+	//
+	if args.tsOut != "" {
+		program := cgtsProgramTypescript(lnkProgram, indent, "\n");
+		fmt.Printf("\n\n\nPROG-TS\n%s", program)
+		writeFile(args.tsOut, program);
+	}
+	// if args.goOut != "" {
+	// 	if args.goPackageName == "" {
+	// 		log.Fatal("--go-package-name must be present when --go-out is specified");
+	// 	}
+	// 	program := cgProgramGolang(checked, indent, args.goPackageName);
+	// 	writeFile(args.goOut, program);
+	// }
+}
 
 func show_ast(args ProgramCliParameters) {
 	if len(args.rest) == 0 {
@@ -171,11 +174,11 @@ func show_lc(args ProgramCliParameters) {
 		log.Fatalf("ERR: %s (at %#v)", err.Error(), tokens[errI])
 	}
 	fmt.Printf("\n\n\nAST\n%s", astProgram.DebugString())
-	errT, err := lcCheckProgram1Of2CheckReservedName(astProgram)
+	errT, err := lcCheckProgram1Of3CheckReservedName(astProgram)
 	if err != nil {
 		log.Fatalf("ERR: %s (at %#v)", err.Error(), errT)
 	}
-	programLc, topLevelCollisions, undefinedRefs := lcCheckProgram2Of2CheckCollisionAndUndefined(astProgram)
+	programLc, topLevelCollisions, undefinedRefs := lcCheckProgram2Of3CheckCollisionAndUndefined(astProgram)
 	if len(topLevelCollisions) > 0 || len(undefinedRefs) > 0 {
 		if len(topLevelCollisions) > 0 {
 			log.Printf("\n\nDetected %d duplicate identifiers: %#v\n", len(topLevelCollisions), topLevelCollisions)
@@ -263,7 +266,6 @@ func show_flt(args ProgramCliParameters) {
 	fmt.Printf("\n\n\nFLT\n%s", fltProgram.DebugString())
 }
 
-
 func main() {
 
 	args := hfcliParseArgs(os.Args)
@@ -271,8 +273,7 @@ func main() {
 	//fmt.Printf("//args: %#v", args);
 
 	if args.verb == "build" && true {
-		//build(args);
-		fmt.Print("Cannot build yet")
+		build(args);
 	} else if args.verb == "show-ast" {
 		show_ast(args)
 	} else if args.verb == "show-flt" {

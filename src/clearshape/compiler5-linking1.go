@@ -111,11 +111,11 @@ func lnkAbsPathToLcProgram(pathStr string) (LcProgram, *LnkErrorUnion) {
 	if err != nil {
 		return LcProgram{}, &LnkErrorUnion{OneofParseErr: &LnkTokenErr1{ErrToken: tokens[errI], Err: err}}
 	}
-	errT, err := lcCheckProgram1Of2CheckReservedName(astProgram)
+	errT, err := lcCheckProgram1Of3CheckReservedName(astProgram)
 	if err != nil {
 		return LcProgram{}, &LnkErrorUnion{OneofReservedNameErr: &LnkTokenErr1{ErrToken: *errT, Err: err}}
 	}
-	lcprog, collision, undef := lcCheckProgram2Of2CheckCollisionAndUndefined(astProgram)
+	lcprog, collision, undef := lcCheckProgram2Of3CheckCollisionAndUndefined(astProgram)
 	if len(collision) > 0 {
 		return LcProgram{}, &LnkErrorUnion{OneofLcCollisionErr: &collision}
 	}

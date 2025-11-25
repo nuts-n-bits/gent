@@ -66,3 +66,14 @@ func hfNormalizedToSnake(li []string) string {
 func hfIsKw(tok Token, ident string) bool {
 	return tok.Kind == TokenIdent && tok.Data == ident
 }
+
+func hfSkipReservedLnkStructOrEnumLines(lines []LnkStructOrEnumLine) []LnkStructOrEnumLine {
+	coll := []LnkStructOrEnumLine{}
+	for _, line := range lines {
+		if line.IsReserved {
+			continue
+		}
+		coll = append(coll, line)
+	}
+	return coll
+}

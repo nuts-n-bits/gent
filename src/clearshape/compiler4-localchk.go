@@ -79,7 +79,7 @@ type LcStructOrEnumLine struct {
 	IsReserved bool       `json:"isReserved"`
 }
 
-func lcCheckProgram1Of2CheckReservedName(astProgram AstProgram) (*Token, error) {
+func lcCheckProgram1Of3CheckReservedName(astProgram AstProgram) (*Token, error) {
 	for _, importStmt := range astProgram.Imports {
 		if err := lcIsReservedIdent(importStmt.ImportedAsIdent.Data); err != nil {
 			return &importStmt.ImportedAsIdent, err
@@ -88,7 +88,7 @@ func lcCheckProgram1Of2CheckReservedName(astProgram AstProgram) (*Token, error) 
 	return nil, nil
 }
 
-func lcCheckProgram2Of2CheckCollisionAndUndefined(astProgram AstProgram) (
+func lcCheckProgram2Of3CheckCollisionAndUndefined(astProgram AstProgram) (
 	lcProg LcProgram, topLevelCollision []LcErrorTokenCollision, undefToks []Token,
 ) {
 	tokenCollisions := []LcErrorTokenCollision{}
@@ -117,27 +117,27 @@ func lcCheckProgram2Of2CheckCollisionAndUndefined(astProgram AstProgram) (
 }
 
 func lcCheckStructOrEnumFieldNamesRecursive(astType AstTypeExpr, tokenCollisions *[]LcErrorTokenCollision) {
-		if astType.OneofStructDef != nil {
-			t := lcCheckStructOrEnumFieldNamesCore(*astType.OneofStructDef)
-			*tokenCollisions = append(*tokenCollisions, t...)
-			for _, subType := range *astType.OneofStructDef {
-				lcCheckStructOrEnumFieldNamesRecursive(subType.TypeExpr, tokenCollisions)
-			}
-		} else if astType.OneofEnumDef != nil {
-			t := lcCheckStructOrEnumFieldNamesCore(*astType.OneofEnumDef)
-			*tokenCollisions = append(*tokenCollisions, t...)
-			for _, subType := range *astType.OneofEnumDef {
-				lcCheckStructOrEnumFieldNamesRecursive(subType.TypeExpr, tokenCollisions)
-			}
-		} else if astType.OneofTupleDef != nil {
-			for _, subType := range *astType.OneofTupleDef {
-				lcCheckStructOrEnumFieldNamesRecursive(subType, tokenCollisions)
-			}
-		} else if astType.OneofMapOf != nil {
-			lcCheckStructOrEnumFieldNamesRecursive(*astType.OneofMapOf, tokenCollisions)
-		} else if astType.OneofListOf != nil {
-			lcCheckStructOrEnumFieldNamesRecursive(*astType.OneofListOf, tokenCollisions)
+	if astType.OneofStructDef != nil {
+		t := lcCheckStructOrEnumFieldNamesCore(*astType.OneofStructDef)
+		*tokenCollisions = append(*tokenCollisions, t...)
+		for _, subType := range *astType.OneofStructDef {
+			lcCheckStructOrEnumFieldNamesRecursive(subType.TypeExpr, tokenCollisions)
 		}
+	} else if astType.OneofEnumDef != nil {
+		t := lcCheckStructOrEnumFieldNamesCore(*astType.OneofEnumDef)
+		*tokenCollisions = append(*tokenCollisions, t...)
+		for _, subType := range *astType.OneofEnumDef {
+			lcCheckStructOrEnumFieldNamesRecursive(subType.TypeExpr, tokenCollisions)
+		}
+	} else if astType.OneofTupleDef != nil {
+		for _, subType := range *astType.OneofTupleDef {
+			lcCheckStructOrEnumFieldNamesRecursive(subType, tokenCollisions)
+		}
+	} else if astType.OneofMapOf != nil {
+		lcCheckStructOrEnumFieldNamesRecursive(*astType.OneofMapOf, tokenCollisions)
+	} else if astType.OneofListOf != nil {
+		lcCheckStructOrEnumFieldNamesRecursive(*astType.OneofListOf, tokenCollisions)
+	}
 }
 
 func lcCheckStructOrEnumFieldNamesCore(lines []AstStructOrEnumLine) []LcErrorTokenCollision {
@@ -256,8 +256,6 @@ func lcCheckTopLevelIdentCollision(astTypes []AstTypedef, imports []AstImport) [
 	}
 	return ret
 }
-
-
 
 func lcTypeConvertNoCheck(astType AstTypeExpr) LcTypeExpr {
 	if astType.OneofStructDef != nil {

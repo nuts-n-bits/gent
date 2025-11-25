@@ -1,358 +1,596 @@
 package main
 
-// import (
-// 	_ "embed"
-// 	"fmt"
-// 	"strings"
-// )
+import (
+	_ "embed"
+	"fmt"
+	"strconv"
+	"strings"
+)
 
-// // typescript (.ts)
+//go:embed runtime/lib-typescript.ts
+var cgtsLib string
 
-// //go:embed runtime/lib-typescript.ts
-// var cgTsLib string;
+func cgtsProgramTypescript(lnkProgram LnkProgram, indent string, newline string) string {
+	var b strings.Builder
+	write := func(indentCount int, s string) {
+		b.WriteString(strings.Repeat(indent, indentCount) + s + newline)
+	}
+	for topIdent, typeExpr := range lnkProgram.Types {
+		topIdent = cgtsBannedWordsMangle(topIdent)
+		typeExprLines := cgtsTypeExpr(typeExpr, indent)
+		multiWr(write, 0, "export type __"+topIdent+" = ", typeExprLines, "")
+		write(0, "")
+	}
+	for topIdent, typeExpr := range lnkProgram.Types {
+		topIdent = cgtsBannedWordsMangle(topIdent)
+		write(0, "export class "+topIdent+" {")
+		write(1, "static parseJson(a: $J): __"+topIdent+" | Error {")
+		typeParser := cgtsTypeParserJson(typeExpr, indent)
+		multiWr(write, 2, "const parser = ", typeParser, ";")
+		write(2, "return parser(a);")
+		write(1, "}")
+		write(1, "")
+		write(1, "static toJsonCore(a: __"+topIdent+"): $J {")
+		typeWriter := cgtsTypeWriterJson(typeExpr, indent)
+		multiWr(write, 2, "const writer: (a: __"+topIdent+") => $J = ", typeWriter, ";")
+		write(2, "return writer(a);")
+		write(1, "}")
+		write(1, "static toJson(a: __"+topIdent+"): string {")
+		write(2, "return JSON.stringify(this.toJsonCore(a));")
+		write(1, "}")
+		write(0, "}")
+		write(0, "")
+	}
+	write(0, cgtsLib)
+	return b.String()
+}
 
-// func cgProgramTypescript(chkProgram ChkProgram, indent string) string {
-// 	var b strings.Builder;
-// 	b.WriteString(cgTsLib);
-// 	for _, chkCommand := range chkProgram.commands {
-// 		fragment := cgCommandTypescript(chkCommand, indent);
-// 		b.WriteString(fragment);
-// 	}
-// 	for _, chkMix := range chkProgram.mixes {
-// 		fragment := cgMixTypescript(chkMix, indent);
-// 		b.WriteString(fragment);
-// 	}
-// 	return b.String();
-// }
+func cgtsTypeParserJson(typeExpr LnkTypeExpr, indent string) []string {
+	if typeExpr.OneofBuiltin != nil {
+		return cgtsBuiltinParserJson(*typeExpr.OneofBuiltin, indent)
+	} else if typeExpr.OneofEnum != nil {
+		return cgtsEnumParserJson(*typeExpr.OneofEnum, indent)
+	} else if typeExpr.OneofListof != nil {
+		return cgtsListParserJson(*typeExpr.OneofListof, indent)
+	} else if typeExpr.OneofMapof != nil {
+		return cgtsMapParserJson(*typeExpr.OneofMapof, indent)
+	} else if typeExpr.OneofStruct != nil {
+		return cgtsStructParserJson(*typeExpr.OneofStruct, indent)
+	} else if typeExpr.OneofTokenIdent != nil {
+		return []string{fmt.Sprintf("(a: $J) => %s.parseJson(a)", typeExpr.OneofTokenIdent.Data)}
+	} else if typeExpr.OneofTuple != nil {
+		return cgTsTupleParserJson(*typeExpr.OneofTuple, indent)
+	} else {
+		panic("unreachable")
+	}
+	//return []string{"UNIMPLEMENTED"}
+}
 
-// func cgCommandTypescript(chkCommand ChkCommandDef, indent string) string {
-// 	var b strings.Builder;
-// 	write := func (indentCount int, s string) {
-// 		b.WriteString(strings.Repeat(indent, indentCount) + s + "\n");
-// 	};
-// 	commandProgNameTsPascal := hfcgTsBannedWordsMangle(hfNormalizedToPascal(chkCommand.commandProgName));
-// 	write(0, "type __" + commandProgNameTsPascal + " = {");
-// 	if chkCommand.argExists {
-// 		typeExpr := hfcgTsType(chkCommand.argBaseType, chkCommand.argModifier);
-// 		write(1, "args: " + typeExpr + ";");
-// 	}
-// 	for _, lineDef := range chkCommand.optionDefs {
-// 		if lineDef.isReserved {
-// 			continue;
-// 		}
-// 		fieldName := hfcgTsBannedWordsMangle(hfNormalizedToCamel(lineDef.progName));
-// 		typeExpr := hfcgTsType(lineDef.baseType, lineDef.modifier);
-// 		write(1, fieldName + ": " + typeExpr + ";");
-// 	}
-// 	write(0, "}\n");
+func cgtsTypeWriterJson(typeExpr LnkTypeExpr, indent string) []string {
+	if typeExpr.OneofBuiltin != nil {
+		return cgtsBuiltinWriterJson(*typeExpr.OneofBuiltin, indent)
+	} else if typeExpr.OneofEnum != nil {
+		return cgtsEnumWriterJson(*typeExpr.OneofEnum, indent)
+	} else if typeExpr.OneofListof != nil {
+		return cgtsListWriterJson(*typeExpr.OneofListof, indent)
+	} else if typeExpr.OneofMapof != nil {
+		return cgtsMapWriterJson(*typeExpr.OneofMapof, indent)
+	} else if typeExpr.OneofStruct != nil {
+		return cgtsStructWriterJson(*typeExpr.OneofStruct, indent)
+	} else if typeExpr.OneofTokenIdent != nil {
+		return []string{fmt.Sprintf("a => %s.toJsonCore(a)", typeExpr.OneofTokenIdent.Data)}
+	} else if typeExpr.OneofTuple != nil {
+		return cgTsTupleWriterJson(*typeExpr.OneofTuple, indent)
+	} else {
+		panic("unreachable")
+	}
+	//return []string{"UNIMPLEMENTED"}
+}
 
-// 	write(0, "export class " + commandProgNameTsPascal + "{");
-// 	write(1, "static coreParse(pc: Command): { res: __" + commandProgNameTsPascal + ", missing: string }|Error {");
-// 	write(2, "let missing = \"\";");
-// 	if chkCommand.argExists {
-// 		if chkCommand.argModifier == ModifierOptional && true {
-// 			write(2, "let bArgs = pc.args[0];");
-// 		} else if chkCommand.argModifier == ModifierRequired {
-// 			write(2, "if (pc.args[0] === undefined) {");
-// 			write(3, `missing += "args;";`);
-// 			write(2, "}")
-// 			write(2, "let bArgs = pc.args[0]!;");
-// 		} else {
-// 			write(2, "let bArgs = pc.args;");
-// 		}
-// 	}
-// 	for _, lineDef := range chkCommand.optionDefs {
-// 		if lineDef.isReserved {
-// 			continue;
-// 		}
-// 		fieldName := hfcgTsBannedWordsMangle(hfNormalizedToPascal(lineDef.progName))
-// 		write(2, "let b" + fieldName + " = " + hfcgTsTypeInitExpr(lineDef.baseType, lineDef.modifier) + ";");
-// 		write(2, "let c" + fieldName + " = 0;");
-// 	}
-// 	// check command name match
-// 	write(2, `if (pc.command !== "` + chkCommand.commandName + `") {`);
-// 	write(3, `return new Error("command name mismatch");`);
-// 	write(2, "}")
-// 	// big switch statement
-// 	write(2, "for (let i=0; i<pc.options.length; i+=2) {");
-// 	write(3, "switch(pc.options[i]) {");
-// 	for _, lineDef := range chkCommand.optionDefs {
-// 		if lineDef.isReserved {
-// 			continue;
-// 		}
-// 		fieldName := hfcgTsBannedWordsMangle(hfNormalizedToPascal(lineDef.progName));
-// 		write(3, `case "` + lineDef.shortName + `": `);
-// 		if lineDef.longName != "" {
-// 			write(3, `case "` + lineDef.longName + `": `);
-// 		}
-// 		write(4, hfcgTsFieldUpdate(lineDef));
-// 		write(4, "c" + fieldName + " += 1;");
-// 		write(3, "break;");
-// 	}
-// 	write(3, "}");
-// 	write(2, "}");
-// 	// end big switch, start checking required fields
-// 	for _, lineDef := range chkCommand.optionDefs {
-// 		if lineDef.isReserved {
-// 			continue;
-// 		}
-// 		if lineDef.modifier == ModifierRequired {
-// 			fieldName := "c" + hfcgTsBannedWordsMangle(hfNormalizedToPascal(lineDef.progName));
-// 			write(2, "if (" + fieldName + " < 1) {");
-// 			write(3, `missing += "` + lineDef.shortName + " " + lineDef.longName + `;";`);
-// 			write(2, "}");
-// 		}
-// 	}
-// 	// end checking required. begin return
-// 	write(2, "return {");
-// 	write(3, "res: {");
-// 	if chkCommand.argExists {
-// 		write(4, "args: bArgs, ");
-// 	}
-// 	for _, lineDef := range chkCommand.optionDefs {
-// 		if lineDef.isReserved {
-// 			continue;
-// 		}
-// 		fieldName1 := hfcgTsBannedWordsMangle(hfNormalizedToCamel(lineDef.progName));
-// 		fieldName2 := "b" + hfcgTsBannedWordsMangle(hfNormalizedToPascal(lineDef.progName));
-// 		write(4, fieldName1 + ": " + fieldName2 + ",");
-// 	}
-// 	write(3, "},");
-// 	write(3, "missing: missing,");
-// 	write(2, "}");
-// 	write(1, "}");
-// 	// end coreParse() function, begin coreEncode() function
-// 	write(1, "static coreEncode(a: __" + commandProgNameTsPascal + "): Command {");
-// 	if chkCommand.argExists {
-// 		if chkCommand.argModifier == ModifierRequired && true {
-// 			write(2, "const args = [a.args];");
-// 		} else if chkCommand.argModifier == ModifierOptional {
-// 			write(2, "const args = a.args !== undefined ? [a.args] : [];")
-// 		} else {
-// 			write(2, "const args = a.args;");
-// 		}
-// 	} else {
-// 		write(2, "const args = [] as string[];");
-// 	}
-// 	write(2, "const options = [] as string[];");
-// 	for _, lineDef := range chkCommand.optionDefs {
-// 		if lineDef.isReserved {
-// 			continue;
-// 		}
-// 		fieldName := hfcgTsBannedWordsMangle(hfNormalizedToCamel(lineDef.progName));
-// 		if lineDef.baseType == BaseTypeFlag {
-// 			write(2, "if (a." + fieldName + `) { options.push("` + lineDef.shortName + `", ""` + "); }");
-// 		} else if lineDef.modifier == ModifierOptional {
-// 			write(2, "if (a." + fieldName + ` !== undefined) { options.push("` + lineDef.shortName + `", a.` + fieldName + "); }")
-// 		} else if lineDef.modifier == ModifierRepeated {
-// 			write(2, `for (const b of a.` + fieldName +`) { options.push("` + lineDef.shortName + `", b); }`);
-// 		} else {		
-// 			write(2, `options.push("` + lineDef.shortName + `", a.` + fieldName + ");")
-// 		}
-// 	}
-// 	write(2, "return {");
-// 	write(3, `command: "` + chkCommand.commandName + `",`);
-// 	write(3, "args: args,");
-// 	write(3, "options: options,");
-// 	write(2, "}");
-// 	write(1, "}");
-// 	write(1, "static write(a: __" + commandProgNameTsPascal + "): string {");
-// 	write(2, "return CcCore.encode(this.coreEncode(a));");
-// 	write(1, "}");
-// 	write(1, "static parse(s: string): { res: __" + commandProgNameTsPascal + ", missing: string }|Error {");
-// 	write(2, "const e = CcCore.parse(s);");
-// 	write(2, "if (e instanceof Error) { return e; }");
-// 	write(2, "if (e.length !== 1) { return new Error(\"expected exactly 1 command line\"); }");
-// 	write(2, "const f = e[0]!;");
-// 	write(2, "return this.coreParse(f);");
-// 	write(1, "}");
-// 	write(1, fmt.Sprintf("static emptyValue(): { res: __%s, missing: string } {", commandProgNameTsPascal));
-// 	write(2, fmt.Sprintf(`const ev = this.coreParse({ command: "%s", options: [], args: [] });`, chkCommand.commandName));
-// 	write(2, "if (ev instanceof Error) { throw ev; }");
-// 	write(2, "return ev;");
-// 	write(1, "}")
-// 	write(0, "}\n");
-// 	return b.String();
-// }
+func cgtsBuiltinWriterJson(builtinType BuiltinType, indent string) []string {
+	b := []string{}
+	write := func(indentCount int, s string) {
+		b = append(b, strings.Repeat(indent, indentCount)+s)
+	}
+	if builtinType == BuiltinTypeString && true {
+		write(0, `$writeString`)
+	} else if builtinType == BuiltinTypeBoolean {
+		write(0, `$writeBoolean`)
+	} else if builtinType == BuiltinTypeInt64 {
+		write(0, `$writeI64`)
+	} else if builtinType == BuiltinTypeUint64 {
+		write(0, `$writeU64`)
+	} else if builtinType == BuiltinTypeFloat64 {
+		write(0, `$writeF64`)
+	} else if builtinType == BuiltinTypeNull {
+		write(0, `$writeNull`)
+	} else if builtinType == BuiltinTypeBinary {
+		write(0, `$writeBinary`)
+	} else {
+		panic("unreachable")
+	}
+	return b
+}
 
-// func cgMixTypescript(chkMixDef ChkMixDef, indent string) string {
-// 	var b strings.Builder;
-// 	write := func (indentCount int, s string) {
-// 		b.WriteString(strings.Repeat(indent, indentCount) + s + "\n");
-// 	};
-// 	mixNameTsPascal := hfcgTsBannedWordsMangle(hfNormalizedToPascal(chkMixDef.mixProgName));
-// 	// begin type definition
-// 	write(0, "type __" + mixNameTsPascal + " = {");
-// 	for _, command := range chkMixDef.mixCommands {
-// 		typeIdent := "__" + hfcgTsBannedWordsMangle(hfNormalizedToPascal(command.commandProgName));
-// 		if command.modifier == ModifierOptional && true {
-// 			typeIdent += "|undefined";
-// 		} else if command.modifier == ModifierRepeated {
-// 			typeIdent += "[]";
-// 		}
-// 		write(1, hfcgTsBannedWordsMangle(hfNormalizedToCamel(command.commandProgName)) + ": " + typeIdent + ",");
-// 	}
-// 	write(0, "}\n");
-// 	// end type definition
-// 	// begin class definition
-// 	write(0, "export class " + mixNameTsPascal + " {");
-// 	write(1, "static parse(wiredata: string): { mix: __" + mixNameTsPascal + ", missing: string }|Error {");
-// 	write(2, "const res = CcCore.parse(wiredata);");
-// 	write(2, "if (res instanceof Error) { return res; }");
-// 	write(2, "let missing = \"\";");
-// 	write(2, "let mixMissing = \"\"");
-// 	for _, mixCommand := range chkMixDef.mixCommands {
-// 		commandBackingVariableName := "b" + hfcgTsBannedWordsMangle(hfNormalizedToPascal(mixCommand.commandProgName));
-// 		commandMissingVariableName := "m" + hfcgTsBannedWordsMangle(hfNormalizedToPascal(mixCommand.commandProgName));
-// 		commandCountingVariableName := "c" + hfcgTsBannedWordsMangle(hfNormalizedToPascal(mixCommand.commandProgName));
-// 		backingVariableTypeBase := "__" + hfNormalizedToPascal(mixCommand.commandProgName);
-// 		backingVariableTrailer := "";
-// 		if mixCommand.modifier == ModifierOptional && true {
-// 			backingVariableTrailer = "|undefined = undefined";
-// 		} else if mixCommand.modifier == ModifierRepeated {
-// 			backingVariableTrailer = "[] = []";
-// 		}
-// 		write(2, "let " + commandBackingVariableName + ": " + backingVariableTypeBase + backingVariableTrailer + ";");
-// 		write(2, "let " + commandMissingVariableName + " = \"\";");
-// 		write(2, "let " + commandCountingVariableName + " = 0;");
-// 	}
-// 	// big for switch
-// 	write(2, "for (const cmd of res) {");
-// 	write(3, "switch (cmd.command) {");
-// 	for i, mixCommand := range chkMixDef.mixCommands {
-// 		tempVarName := "parsed" + fmt.Sprint(i);
-// 		commandBackingVariableName := "b" + hfcgTsBannedWordsMangle(hfNormalizedToPascal(mixCommand.commandProgName));
-// 		commandMissingVariableName := "m" + hfcgTsBannedWordsMangle(hfNormalizedToPascal(mixCommand.commandProgName));
-// 		commandCountingVariableName := "c" + hfcgTsBannedWordsMangle(hfNormalizedToPascal(mixCommand.commandProgName));
-// 		write(3, `case "` + mixCommand.commandName + `":`);
-// 			write(4, "const " + tempVarName + " = " + hfNormalizedToPascal(mixCommand.commandProgName) + ".coreParse(cmd);");
-// 			write(4, "if (" + tempVarName + " instanceof Error) { return " + tempVarName + "; }");
-// 			if mixCommand.modifier == ModifierRepeated {
-// 				write(4, commandBackingVariableName + ".push(" + tempVarName + ".res);");
-// 			} else {
-// 				write(4, commandBackingVariableName + " = " + tempVarName + ".res;");
-// 			}
-// 			write(4, commandMissingVariableName + " += " + tempVarName + ".missing;");
-// 			write(4, commandCountingVariableName + " += 1;");
-// 		write(3, "break;");
-// 	}
-// 	write(3, "}");
-// 	write(2, "}");
-// 	// end of big for switch
-// 	// check missing
-// 	for _, mixCommand := range chkMixDef.mixCommands {
-// 		if mixCommand.modifier == ModifierRequired {
-// 			commandClassName := hfcgTsBannedWordsMangle(hfNormalizedToPascal(mixCommand.commandProgName));
-// 			commandBackingVariableName := "b" + hfcgTsBannedWordsMangle(hfNormalizedToPascal(mixCommand.commandProgName));
-// 			commandCountingVariableName := "c" + hfcgTsBannedWordsMangle(hfNormalizedToPascal(mixCommand.commandProgName));
-// 			write(2, "if (" + commandCountingVariableName + " < 1) {");
-// 			write(3, "mixMissing += \"" + mixCommand.commandName + ";\";");
-// 			write(3, fmt.Sprintf("const { res, missing } = %s.emptyValue();", commandClassName));
-// 			write(3, commandBackingVariableName + " = res;");
-// 			write(2, "}")
-// 		}
-// 	}
-// 	write(2, `if (mixMissing.length > 0) { missing += "mix:" + mixMissing + "\n"; }`);
-// 	for _, mixCommand := range chkMixDef.mixCommands {
-// 		commandMissingVariableName := "m" + hfcgTsBannedWordsMangle(hfNormalizedToPascal(mixCommand.commandProgName));
-// 		write(2, fmt.Sprintf(`if (%s.length > 0) { missing += "%s:" + %s + "\n"; }`, commandMissingVariableName, mixCommand.commandName, commandMissingVariableName));
-// 	}
-// 	write(2, "return { missing: missing, mix: {");
-// 	for _, mixCommand := range chkMixDef.mixCommands {
-// 		commandBackingVariableName := "b" + hfcgTsBannedWordsMangle(hfNormalizedToPascal(mixCommand.commandProgName));
-// 		commandTsFieldName := hfcgTsBannedWordsMangle(hfNormalizedToCamel(mixCommand.commandProgName));
-// 		write(3, commandTsFieldName + ": " + commandBackingVariableName + "!,");
-// 	}
-// 	write(2, "} }; ");
-// 	write(1, "}");
-// 	// end of parse(), begin of write()
-// 	write(1, fmt.Sprintf("static write(a: __%s): string {", mixNameTsPascal));
-// 	write(2, "let coll = \"\";");
-// 	for _, mixCommand := range chkMixDef.mixCommands {
-// 		commandTsFieldName := hfcgTsBannedWordsMangle(hfNormalizedToCamel(mixCommand.commandProgName));
-// 		commandTsClassName := hfcgTsBannedWordsMangle(hfNormalizedToPascal(mixCommand.commandProgName));
-// 		if mixCommand.modifier == ModifierOptional && true {
-// 			write(2, fmt.Sprintf("if (a.%s !== undefined) {", commandTsFieldName));
-// 			write(3, fmt.Sprintf(`coll += %s.write(a.%s) + "\n";`, commandTsClassName, commandTsFieldName));
-// 			write(2, "}");
-// 		} else if mixCommand.modifier == ModifierRepeated {
-// 			write(2, fmt.Sprintf("for (const b of a.%s) {", commandTsFieldName));
-// 			write(3, fmt.Sprintf(`coll += %s.write(b) + "\n";`, commandTsClassName));
-// 			write(2, "}");
-// 		} else {
-// 			write(2, fmt.Sprintf(`coll += %s.write(a.%s) + "\n";`, commandTsClassName, commandTsFieldName));
-// 		}
-// 	}
-// 	write(2, "return coll;")
-// 	write(1, "}");
-// 	write(0, "}");
-// 	return b.String();
-// }
+func cgtsStructWriterJson(lines []LnkStructOrEnumLine, indent string) []string {
+	b := []string{}
+	write := func(indentCount int, s string) {
+		b = append(b, strings.Repeat(indent, indentCount)+s)
+	}
+	write(0, "a => {")
+	linesWithoutReserved := hfSkipReservedLnkStructOrEnumLines(lines)
+	for _, line := range linesWithoutReserved {
+		pascalIdent := cgtsBannedWordsMangle(hfNormalizedToPascal(line.ProgName))
+		innerWriter := cgtsTypeWriterJson(line.TypeExpr, indent)
+		innerType := cgtsTypeExpr(line.TypeExpr, indent)
+		multiWr2(write, 1, "const wr" + pascalIdent + ": (a: ", innerType, ") => $J = ", innerWriter, ";")
+	}
+	write(1, "const ret: $J = {}")
+	for _, line := range linesWithoutReserved {
+		pascalIdent := cgtsBannedWordsMangle(hfNormalizedToPascal(line.ProgName))
+		camleIdent := cgtsBannedWordsMangle(hfNormalizedToCamel(line.ProgName))
+		if line.Omittable {
+			write(1, fmt.Sprintf("if (a.%s !== undefined) { ret[%s] = wr%s(a.%s); }", camleIdent, cgtsEncodeString(line.WireName), pascalIdent, camleIdent))
+		} else {
+			write(1, fmt.Sprintf("ret[%s] = wr%s(a.%s);", cgtsEncodeString(line.WireName), pascalIdent, camleIdent))
+		}
+	}
+	write(1, "return ret;")
+	write(0, "}")
+	return b
+}
 
+func cgtsBuiltinParserJson(builtinType BuiltinType, indent string) []string {
+	b := []string{}
+	write := func(indentCount int, s string) {
+		b = append(b, strings.Repeat(indent, indentCount)+s)
+	}
+	if builtinType == BuiltinTypeString && true {
+		write(0, `$parseString`)
+	} else if builtinType == BuiltinTypeBoolean {
+		write(0, `$parseBoolean`)
+	} else if builtinType == BuiltinTypeInt64 {
+		write(0, `$parseI64`)
+	} else if builtinType == BuiltinTypeUint64 {
+		write(0, `$parseU64`)
+	} else if builtinType == BuiltinTypeFloat64 {
+		write(0, `$parseF64`)
+	} else if builtinType == BuiltinTypeNull {
+		write(0, `$parseNull`)
+	} else if builtinType == BuiltinTypeBinary {
+		write(0, `$parseBinary`)
+	} else {
+		panic("unreachable")
+	}
+	return b
+}
 
-// // helper functions
+func cgtsStructParserJson(lines []LnkStructOrEnumLine, indent string) []string {
+	b := []string{}
+	write := func(indentCount int, s string) {
+		b = append(b, strings.Repeat(indent, indentCount)+s)
+	}
+	write(0, "(a: $J) => {")
+	write(1, `if (typeof a !== "object" || a === null || a instanceof Array) { return new Error("expected object when parsing struct"); }`)
+	write(1, `const copycat = { ...a };`)
+	linesWithoutReserved := hfSkipReservedLnkStructOrEnumLines(lines)
+	write(1, "// for each field: create parsers")
+	for _, line := range linesWithoutReserved {
+		typeParser := cgtsTypeParserJson(line.TypeExpr, indent)
+		pascalIdent := cgtsBannedWordsMangle(hfNormalizedToPascal(line.ProgName))
+		multiWr(write, 1, "const parser"+pascalIdent+" = ", typeParser, ";")
+	}
+	write(1, "// for required fields only: check presence")
+	for _, line := range linesWithoutReserved {
+		camelIdent := cgtsBannedWordsMangle(hfNormalizedToCamel(line.ProgName))
+		fieldAccessor := "copycat[" + cgtsEncodeString(line.WireName) + "]"
+		if !line.Omittable {
+			write(1, fmt.Sprintf(`if (%s === undefined) { return new Error("required field '%s' is undefined") }`, fieldAccessor, camelIdent))
+		}
+	}
+	write(1, "// for each field: parse, respecting requiredness, early return on error")
+	for _, line := range linesWithoutReserved {
+		pascalIdent := cgtsBannedWordsMangle(hfNormalizedToPascal(line.ProgName))
+		fieldAccessor := "copycat[" + cgtsEncodeString(line.WireName) + "]"
+		if line.Omittable {
+			write(1, fmt.Sprintf("const parsed%s = %s === undefined ? undefined : parser%s(%s);", pascalIdent, fieldAccessor, pascalIdent, fieldAccessor))
+		} else {
+			write(1, fmt.Sprintf("const parsed%s = parser%s(%s);", pascalIdent, pascalIdent, fieldAccessor))
+		}
+		write(1, fmt.Sprintf("if (parsed%s instanceof Error) { return parsed%s; }", pascalIdent, pascalIdent))
+	}
+	write(1, "// for each field: delete field from copycat object")
+	for _, line := range linesWithoutReserved {
+		fieldAccessor := "copycat[" + cgtsEncodeString(line.WireName) + "]"
+		write(1, "delete "+fieldAccessor+";")
+	}
+	write(1, `if (Object.keys(copycat).length > 0) { return new Error("unknown fields present"); }`)
+	write(1, "return {")
+	for _, line := range linesWithoutReserved {
+		camelIdent := cgtsBannedWordsMangle(hfNormalizedToCamel(line.ProgName))
+		pascalIdent := cgtsBannedWordsMangle(hfNormalizedToPascal(line.ProgName))
+		write(2, camelIdent+`: parsed`+pascalIdent+", ")
+	}
+	write(1, "}")
+	write(0, "}")
+	return b
+}
 
-// func hfcgTsTypeInitExpr(baseType BaseType, modifier Modifier) string {
-// 	var zeroVal, typeName string;
-// 	switch baseType {
-// 	case BaseTypeUdecimal, BaseTypeDecimal, BaseTypeString, BaseTypeBase64:
-// 		zeroVal = "\"\"";
-// 		typeName = "string";
-// 	case BaseTypeFlag:
-// 		return "false";
-// 	default: 
-// 		zeroVal = "\"\"";
-// 		typeName = "string";
-// 	}
-// 	switch modifier {
-// 	case ModifierOptional: 
-// 		return "undefined as " + typeName + "|undefined";
-// 	case ModifierRequired:
-// 		return zeroVal;
-// 	case ModifierRepeated:
-// 		return "[] as " + typeName + "[]";
-// 	default: 
-// 		return zeroVal;
-// 	}
-// }
+func cgtsEnumParserJson(lines []LnkStructOrEnumLine, indent string) []string {
+	b := []string{}
+	write := func(indentCount int, s string) {
+		b = append(b, strings.Repeat(indent, indentCount)+s)
+	}
+	typeLines := cgtsTypeEnum(lines, indent)
+	write(0, "(a: $J) => {")
+	multiWr(write, 1, "type retType = ", typeLines, ";")
+	write(1, `if (typeof a !== "object" || a === null || a instanceof Array) { return new Error("expected object when parsing enum"); }`)
+	write(1, `const entries = Object.entries(a);`)
+	write(1, `if (entries.length !== 1) { return new Error("multiple fields defined while parsing enum"); } `)
+	write(1, `const [k, v] = entries[0]!;`)
+	linesWithoutReserved := hfSkipReservedLnkStructOrEnumLines(lines)
+	write(1, "switch (k) {")
+	for _, line := range linesWithoutReserved {
+		typeParser := cgtsTypeParserJson(line.TypeExpr, indent)
+		pascalIdent := cgtsBannedWordsMangle(hfNormalizedToPascal(line.ProgName))
+		camelIdent := cgtsBannedWordsMangle(hfNormalizedToCamel(line.ProgName))
+		write(1, "case "+cgtsEncodeString(line.WireName)+": ")
+		multiWr(write, 2, "const parser"+pascalIdent+" = ", typeParser, ";")
+		write(2, fmt.Sprintf("const parsed%s = parser%s(v);", pascalIdent, pascalIdent))
+		write(2, fmt.Sprintf("return { %s: parsed%s } as retType; ", camelIdent, pascalIdent))
+		write(1, "break;")
+	}
+	write(1, "default: ")
+	write(2, `return new Error("unknown variant name while parsing enum");`)
+	write(1, "}")
+	write(0, "}")
+	return b
+}
 
-// func hfcgTsType(baseType BaseType, modifier Modifier) string {
-// 	var t string;
-// 	var m string;
-// 	switch modifier {
-// 	case ModifierOptional: 
-// 		m = "|undefined";
-// 	case ModifierRequired:
-// 		m = "";
-// 	case ModifierRepeated:
-// 		m = "[]";
-// 	}
-// 	switch baseType {
-// 	case BaseTypeUdecimal, BaseTypeDecimal, BaseTypeString, BaseTypeBase64:
-// 		t = "string" + m;
-// 	case BaseTypeFlag:
-// 		t = "boolean";
-// 	default: 
-// 		t = "string" + m;
-// 	}
-// 	return t;
-// }
+func cgtsEnumWriterJson(lines []LnkStructOrEnumLine, indent string) []string {
+	b := []string{}
+	write := func(indentCount int, s string) {
+		b = append(b, strings.Repeat(indent, indentCount)+s)
+	}
+	typeLines := cgtsTypeEnum(lines, indent)
+	write(0, "a => {")
+	multiWr(write, 1, "type retType = ", typeLines, ";")
+	linesWithoutReserved := hfSkipReservedLnkStructOrEnumLines(lines)
+	for _, line := range linesWithoutReserved {
+		camelIdent := cgtsBannedWordsMangle(hfNormalizedToCamel(line.ProgName))
+		write(1, fmt.Sprintf(`if ("%s" in a) {`, camelIdent))
+		multiWr(write, 2, "const writerInner = ", cgtsTypeWriterJson(line.TypeExpr, indent), ";")
+		write(2, fmt.Sprintf(`return { %s: writerInner(a.%s) };`, cgtsEncodeString(line.WireName), camelIdent))
+		write(1, "}")
+	}
+	write(1, "return $never(a);")
+	write(0, "}")
+	return b
+}
 
-// func hfcgTsFieldUpdate(lineDef ChkOptionDef) string {
-// 	progName := "b" + hfNormalizedToPascal(lineDef.progName);
-// 	if lineDef.baseType == BaseTypeFlag {
-// 		return progName + " = true;"
-// 	} else if lineDef.modifier == ModifierRepeated {
-// 		return progName + ".push(pc.options[i+1]!);";
-// 	} else {
-// 		return progName + " = pc.options[i+1]!;";
-// 	}
-// }
+func cgtsListParserJson(innerType LnkTypeExpr, indent string) []string {
+	b := []string{}
+	write := func(indentCount int, s string) {
+		b = append(b, strings.Repeat(indent, indentCount)+s)
+	}
+	write(0, "(a: $J) => {")
+	write(1, `if (!(a instanceof Array)) { return new Error("expected array while parsing list"); }`)
+	innerTypeDecl := cgtsTypeExpr(innerType, indent)
+	multiWr(write, 1, "const coll = [] as ", innerTypeDecl, "[];")
+	innerParser := cgtsTypeParserJson(innerType, indent)
+	multiWr(write, 1, "const parser = ", innerParser, ";")
+	write(1, `for (const elem of a) {`)
+	write(2, "const parsed = parser(elem);")
+	write(2, "if (parsed instanceof Error) { return parsed } ")
+	write(2, "coll.push(parsed);")
+	write(1, `}`)
+	write(1, `return coll;`)
+	write(0, "}")
+	return b
+}
 
-// func hfcgTsBannedWordsMangle(ident string) string {
-// 	switch ident {
-// 	case "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do", "else", "enum", "export", "extends",  "false", "finally", "for", "function",  "if", "import", "in", "instanceof",  "new", "null",  "return",  "super", "switch",  "this", "throw", "true", "try", "typeof", "var", "void", "while", "with", "yield":
-// 		return ident + "_";
-// 	}
-// 	return hfcgOtherBannedWordsMangle(ident);
-// }
+func cgtsListWriterJson(innerType LnkTypeExpr, indent string) []string {
+	b := []string{}
+	write := func(indentCount int, s string) {
+		b = append(b, strings.Repeat(indent, indentCount)+s)
+	}
+	write(0, `a => {`)
+	write(1, `const coll = [] as $J[];`)
+	write(1, `for (const elem of a) {`)
+	multiWr2(write, 2, `const innerWriter: (a: `, cgtsTypeExpr(innerType, indent), `) => $J = `, cgtsTypeWriterJson(innerType, indent), `;`)
+	write(2, `coll.push(innerWriter(elem));`)
+	write(1, `}`)
+	write(1, `return coll;`)
+	write(0, `}`)
+	return b
+}
+
+func cgtsMapParserJson(innerType LnkTypeExpr, indent string) []string {
+	b := []string{}
+	write := func(indentCount int, s string) {
+		b = append(b, strings.Repeat(indent, indentCount)+s)
+	}
+	write(0, "(a: $J) => {")
+	write(1, `if (typeof a !== "object" || a === null || a instanceof Array) { return new Error("expected object when parsing map"); }`)
+	innerTypeDecl := cgtsTypeExpr(innerType, indent)
+	multiWr(write, 1, "const coll = {} as { [i: string]: ", innerTypeDecl, " };")
+	innerParser := cgtsTypeParserJson(innerType, indent)
+	multiWr(write, 1, "const parser = ", innerParser, ";")
+	write(1, `for (const k in a) {`)
+	write(2, "const parsed = parser(a[k]!);")
+	write(2, "if (parsed instanceof Error) { return parsed } ")
+	write(2, "coll[k] = parsed;")
+	write(1, `}`)
+	write(1, `return coll;`)
+	write(0, "}")
+	return b
+}
+
+func cgtsMapWriterJson(innerType LnkTypeExpr, indent string) []string {
+	b := []string{}
+	write := func(indentCount int, s string) {
+		b = append(b, strings.Repeat(indent, indentCount)+s)
+	}
+	write(0, `a => {`)
+	write(1, `const coll = {} as { [_: string]: $J };`)
+	write(1, `for (const k in a) {`)
+	multiWr2(write, 2, `const innerWriter: (a: `, cgtsTypeExpr(innerType, indent), `) => $J = `, cgtsTypeWriterJson(innerType, indent), `;`)
+	write(2, `coll[k] = innerWriter(a[k]!);`)
+	write(1, `}`)
+	write(1, `return coll;`)
+	write(0, `}`)
+	return b
+}
+
+func cgTsTupleParserJson(innerTypes []LnkTypeExpr, indent string) []string {
+	b := []string{}
+	write := func(indentCount int, s string) {
+		b = append(b, strings.Repeat(indent, indentCount)+s)
+	}
+	retTypeLines := cgtsTypeTuple(innerTypes, indent)
+	write(0, "(a: $J) => {")
+	write(1, `if (!(a instanceof Array)) { return new Error("expected array when parsing tuple"); }`)
+	write(1, `if (a.length !== `+strconv.Itoa(len(innerTypes))+`) { return new Error("wrong tuple length"); }`)
+	for i, innerType := range innerTypes {
+		iStr := strconv.Itoa(i)
+		typeParser := cgtsTypeParserJson(innerType, indent)
+		multiWr(write, 1, "const parser"+iStr+" = ", typeParser, ";")
+	}
+	for i := range innerTypes {
+		iStr := strconv.Itoa(i)
+		write(1, fmt.Sprintf("const parsed%s = parser%s(a[%s]!);", iStr, iStr, iStr))
+		write(1, fmt.Sprintf(`if (parsed%s instanceof Error) { return parsed%s }`, iStr, iStr))
+	}
+	write(1, "return [")
+	for i := range innerTypes {
+		iStr := strconv.Itoa(i)
+		write(2, "parsed"+iStr+",")
+	}
+	multiWr(write, 1, "] as ", retTypeLines, ";")
+	write(0, "}")
+	return b
+}
+
+func cgTsTupleWriterJson(innerTypes []LnkTypeExpr, indent string) []string {
+	b := []string{}
+	write := func(indentCount int, s string) {
+		b = append(b, strings.Repeat(indent, indentCount)+s)
+	}
+	write(0, `a => {`)
+	for i, innerType := range innerTypes {
+		iStr := strconv.Itoa(i)
+		typeWriter := cgtsTypeWriterJson(innerType, indent)
+		multiWr(write, 1, "const writer"+iStr+" = ", typeWriter, ";")
+	}
+	for i := range innerTypes {
+		iStr := strconv.Itoa(i)
+		write(1, fmt.Sprintf("const written%s = writer%s(a[%s]!);", iStr, iStr, iStr))
+	}
+	write(1, "return [")
+	for i := range innerTypes {
+		iStr := strconv.Itoa(i)
+		write(2, "written"+iStr+",")
+	}
+	write(1, "];")
+	write(0, `}`)
+	return b
+}
+
+func cgtsTypeExpr(lnkType LnkTypeExpr, indent string) []string {
+	b := []string{}
+	write := func(indentCount int, s string) {
+		b = append(b, strings.Repeat(indent, indentCount)+s)
+	}
+	if lnkType.OneofBuiltin != nil {
+		write(0, cgtsTypeBuiltIn(*lnkType.OneofBuiltin))
+	} else if lnkType.OneofEnum != nil {
+		innerLines := cgtsTypeEnum(*lnkType.OneofEnum, indent)
+		for _, innerLine := range innerLines {
+			write(0, innerLine)
+		}
+	} else if lnkType.OneofListof != nil {
+		innerLines := cgtsTypeExpr(*lnkType.OneofListof, indent)
+		for i, innerLine := range innerLines {
+			if i == len(innerLines)-1 {
+				write(0, innerLine+"[]")
+			} else {
+				write(0, innerLine)
+			}
+		}
+	} else if lnkType.OneofMapof != nil {
+		innerLines := cgtsTypeExpr(*lnkType.OneofMapof, indent)
+		multiWr(write, 0, "{ [_: string]: ", innerLines, " }")
+	} else if lnkType.OneofStruct != nil {
+		innerLines := cgtsTypeStruct(*lnkType.OneofStruct, indent)
+		for _, innerLine := range innerLines {
+			write(0, innerLine)
+		}
+	} else if lnkType.OneofTokenIdent != nil {
+		write(0, "__"+lnkType.OneofTokenIdent.Data)
+	} else if lnkType.OneofTuple != nil {
+		innerLines := cgtsTypeTuple(*lnkType.OneofTuple, indent)
+		for _, innerLine := range innerLines {
+			write(0, innerLine)
+		}
+	} else {
+		panic("unreachable")
+	}
+	return b
+}
+
+func cgtsTypeBuiltIn(builtinType BuiltinType) string {
+	if builtinType == BuiltinTypeString && true {
+		return "string"
+	} else if builtinType == BuiltinTypeBoolean {
+		return "boolean"
+	} else if builtinType == BuiltinTypeInt64 {
+		return "bigint"
+	} else if builtinType == BuiltinTypeUint64 {
+		return "bigint"
+	} else if builtinType == BuiltinTypeFloat64 {
+		return "number"
+	} else if builtinType == BuiltinTypeNull {
+		return "null"
+	} else if builtinType == BuiltinTypeBinary {
+		return "string"
+	} else {
+		panic("unreachable")
+	}
+}
+
+func cgtsTypeEnum(lines []LnkStructOrEnumLine, indent string) []string {
+	b := []string{}
+	write := func(indentCount int, s string) {
+		b = append(b, strings.Repeat(indent, indentCount)+s)
+	}
+	write(0, "{")
+	for i, line := range lines {
+		if i != 0 {
+			write(0, "} | {")
+		}
+		innerLines := cgtsTypeExpr(line.TypeExpr, indent)
+		write(1, cgtsBannedWordsMangle(hfNormalizedToCamel(line.ProgName))+": "+innerLines[0])
+		for _, innerLine := range innerLines[1:] {
+			write(1, innerLine)
+		}
+	}
+	write(0, "}")
+	return b
+}
+
+func cgtsTypeStruct(lines []LnkStructOrEnumLine, indent string) []string {
+	b := []string{}
+	write := func(indentCount int, s string) {
+		b = append(b, strings.Repeat(indent, indentCount)+s)
+	}
+	write(0, "{")
+	for _, line := range lines {
+		innerLines := cgtsTypeExpr(line.TypeExpr, indent)
+		if line.Omittable {
+			multiWr(write, 1, cgtsBannedWordsMangle(hfNormalizedToCamel(line.ProgName))+"?: undefined | ", innerLines, ",")
+		} else {
+			multiWr(write, 1, cgtsBannedWordsMangle(hfNormalizedToCamel(line.ProgName))+": ", innerLines, ",")
+		}
+	}
+	write(0, "}")
+	return b
+}
+
+func cgtsTypeTuple(types []LnkTypeExpr, indent string) []string {
+	b := []string{}
+	write := func(indentCount int, s string) {
+		b = append(b, strings.Repeat(indent, indentCount)+s)
+	}
+	if len(types) == 0 {
+		write(0, "[]")
+	} else if len(types) == 1 {
+		innerLines := cgtsTypeExpr(types[0], indent)
+		multiWr(write, 0, "[", innerLines, "]")
+	} else {
+		write(0, "[")
+		for _, tupleType := range types {
+			innerLines := cgtsTypeExpr(tupleType, indent)
+			multiWr(write, 1, "", innerLines, ",")
+		}
+		write(0, "]")
+	}
+	return b
+}
+
+func cgtsEncodeString(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "\r", "\\r")
+	s = strings.ReplaceAll(s, "\r", "\\r")
+	s = strings.ReplaceAll(s, "\t", "\\t")
+	s = strings.ReplaceAll(s, `"`, "\\\"")
+	return `"` + s + `"`
+}
+
+func cgtsBannedWordsMangle(ident string) string {
+	switch ident {
+	case "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do", "else", "enum", "export", "extends", "false", "finally", "for", "function", "if", "import", "in", "instanceof", "new", "null", "return", "super", "switch", "this", "throw", "true", "try", "typeof", "var", "void", "while", "with", "yield":
+		return ident + "_"
+	case "JSON", "Json", "json", "Error", "Object", "Array", "BigInt", "Number":
+		return ident + "_"
+	default:
+		return ident
+	}
+}
+
+func multiWr(write func(int, string), indentCount int, before string, betweenLines []string, after string) {
+	if len(betweenLines) == 0 {
+		write(indentCount, before + after)
+		return
+	}
+	for i, line := range betweenLines {
+		if len(betweenLines) == 1 {
+			write(indentCount, before+line+after)
+		} else if i == 0 {
+			write(indentCount, before+line)
+		} else if i == len(betweenLines)-1 {
+			write(indentCount, line+after)
+		} else {
+			write(indentCount, line)
+		}
+	}
+}
+
+func multiWr2(
+	write func(int, string), 
+	indentCount int, 
+	before string, 
+	firstMultiLine []string, 
+	between string, 
+	secondMultiLine []string, 
+	after string,
+) {
+	if len(firstMultiLine) == 1 && len(secondMultiLine) == 1 {
+		write(indentCount, before + firstMultiLine[0] + between + secondMultiLine[0] + after)
+	} else if len(firstMultiLine) == 1 {
+		multiWr(write, indentCount, before + firstMultiLine[0] + between, secondMultiLine, after)
+	} else if len(secondMultiLine) == 1 {
+		multiWr(write, indentCount, before, firstMultiLine, between + secondMultiLine[0] + after)
+	} else if len(firstMultiLine) == 0 && len(secondMultiLine) == 0 {
+		write(indentCount, before + between + after)
+	} else if len(firstMultiLine) == 0 {
+		multiWr(write, indentCount, before + between, secondMultiLine, after)
+	} else if len(secondMultiLine) == 0 {
+		multiWr(write, indentCount, before, firstMultiLine, between + after)
+	} else {
+		for i, line := range firstMultiLine {
+			if i == 0 {
+				write(indentCount, before + line)
+			} else if i != len(firstMultiLine)-1 {
+				write(indentCount, line)
+			}
+		}
+		write(indentCount, firstMultiLine[len(firstMultiLine)-1] + between + secondMultiLine[0])
+		for i, line := range secondMultiLine {
+			if i != 0 {
+				write(indentCount, line)
+			} else if i == len(secondMultiLine)-1 {
+				write(indentCount, line + after)
+			}
+		}
+	}
+}
