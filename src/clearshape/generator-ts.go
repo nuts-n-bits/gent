@@ -24,7 +24,18 @@ func cgtsProgramTypescript(lnkProgram LnkProgram, indent string, newline string)
 	for topIdent, typeExpr := range lnkProgram.Types {
 		topIdent = cgtsBannedWordsMangle(topIdent)
 		write(0, "export class "+topIdent+" {")
-		write(1, "static parseJson(a: $J): __"+topIdent+" | Error {")
+		write(1, "static parseJson(a: string): __"+topIdent+" | Error {")
+		write(2, "try { ")
+		write(3, "const obj = JSON.parse(a);")
+		write(3, "return this.parseJsonCore(obj);")
+		write(2, "} catch(e) {")
+		write(3, `if (!(e instanceof Error)) { return new Error("caught non error"); }`)
+		write(3, `return e;`)
+		write(2, "}")
+		write(2, "")
+		write(1, "}")
+		write(1, "")
+		write(1, "static parseJsonCore(a: $J): __"+topIdent+" | Error {")
 		typeParser := cgtsTypeParserJson(typeExpr, indent)
 		multiWr(write, 2, "const parser = ", typeParser, ";")
 		write(2, "return parser(a);")
@@ -35,6 +46,7 @@ func cgtsProgramTypescript(lnkProgram LnkProgram, indent string, newline string)
 		multiWr(write, 2, "const writer: (a: __"+topIdent+") => $J = ", typeWriter, ";")
 		write(2, "return writer(a);")
 		write(1, "}")
+		write(1, "")
 		write(1, "static toJson(a: __"+topIdent+"): string {")
 		write(2, "return JSON.stringify(this.toJsonCore(a));")
 		write(1, "}")
@@ -57,7 +69,7 @@ func cgtsTypeParserJson(typeExpr LnkTypeExpr, indent string) []string {
 	} else if typeExpr.OneofStruct != nil {
 		return cgtsStructParserJson(*typeExpr.OneofStruct, indent)
 	} else if typeExpr.OneofTokenIdent != nil {
-		return []string{fmt.Sprintf("(a: $J) => %s.parseJson(a)", typeExpr.OneofTokenIdent.Data)}
+		return []string{fmt.Sprintf("(a: $J) => %s.parseJsonCore(a)", typeExpr.OneofTokenIdent.Data)}
 	} else if typeExpr.OneofTuple != nil {
 		return cgTsTupleParserJson(*typeExpr.OneofTuple, indent)
 	} else {

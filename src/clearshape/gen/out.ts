@@ -11,6 +11,7 @@ export type __A = {
         d: bigint,
     },
     technicalIdentifier: { [_: string]: bigint },
+    another?: undefined | __B,
     str: {
         struct: string,
         struct2: string,
@@ -37,7 +38,18 @@ export type __B = {
 }
 
 export class A {
-    static parseJson(a: $J): __A | Error {
+    static parseJson(a: string): __A | Error {
+        try { 
+            const obj = JSON.parse(a);
+            return this.parseJsonCore(obj);
+        } catch(e) {
+            if (!(e instanceof Error)) { return new Error("caught non error"); }
+            return e;
+        }
+        
+    }
+    
+    static parseJsonCore(a: $J): __A | Error {
         const parser = (a: $J) => {
             if (typeof a !== "object" || a === null || a instanceof Array) { return new Error("expected object when parsing struct"); }
             const copycat = { ...a };
@@ -124,6 +136,7 @@ export class A {
                 }
                 return coll;
             };
+            const parserAnother = (a: $J) => B.parseJsonCore(a);
             const parserStr = (a: $J) => {
                 if (typeof a !== "object" || a === null || a instanceof Array) { return new Error("expected object when parsing struct"); }
                 const copycat = { ...a };
@@ -192,6 +205,8 @@ export class A {
             if (parsedTime4 instanceof Error) { return parsedTime4; }
             const parsedTechnicalIdentifier = parserTechnicalIdentifier(copycat["ti"]);
             if (parsedTechnicalIdentifier instanceof Error) { return parsedTechnicalIdentifier; }
+            const parsedAnother = copycat["a"] === undefined ? undefined : parserAnother(copycat["a"]);
+            if (parsedAnother instanceof Error) { return parsedAnother; }
             const parsedStr = parserStr(copycat["str"]);
             if (parsedStr instanceof Error) { return parsedStr; }
             const parsedEnu = parserEnu(copycat["enu"]);
@@ -203,6 +218,7 @@ export class A {
             delete copycat["t2"];
             delete copycat["t4"];
             delete copycat["ti"];
+            delete copycat["a"];
             delete copycat["str"];
             delete copycat["enu"];
             if (Object.keys(copycat).length > 0) { return new Error("unknown fields present"); }
@@ -213,6 +229,7 @@ export class A {
                 time2: parsedTime2, 
                 time4: parsedTime4, 
                 technicalIdentifier: parsedTechnicalIdentifier, 
+                another: parsedAnother, 
                 str: parsedStr, 
                 enu: parsedEnu, 
             }
@@ -271,6 +288,7 @@ export class A {
                 }
                 return coll;
             };
+            const wrAnother: (a: __B) => $J = a => B.toJsonCore(a);
             const wrStr: (a: {
                 struct: string,
                 struct2: string,
@@ -309,24 +327,37 @@ export class A {
             if (a.time2 !== undefined) { ret["t2"] = wrTime2(a.time2); }
             if (a.time4 !== undefined) { ret["t4"] = wrTime4(a.time4); }
             ret["ti"] = wrTechnicalIdentifier(a.technicalIdentifier);
+            if (a.another !== undefined) { ret["a"] = wrAnother(a.another); }
             ret["str"] = wrStr(a.str);
             ret["enu"] = wrEnu(a.enu);
             return ret;
         };
         return writer(a);
     }
+    
     static toJson(a: __A): string {
         return JSON.stringify(this.toJsonCore(a));
     }
 }
 
 export class B {
-    static parseJson(a: $J): __B | Error {
+    static parseJson(a: string): __B | Error {
+        try { 
+            const obj = JSON.parse(a);
+            return this.parseJsonCore(obj);
+        } catch(e) {
+            if (!(e instanceof Error)) { return new Error("caught non error"); }
+            return e;
+        }
+        
+    }
+    
+    static parseJsonCore(a: $J): __B | Error {
         const parser = (a: $J) => {
             if (typeof a !== "object" || a === null || a instanceof Array) { return new Error("expected object when parsing struct"); }
             const copycat = { ...a };
             // for each field: create parsers
-            const parserS = (a: $J) => A.parseJson(a);
+            const parserS = (a: $J) => A.parseJsonCore(a);
             const parserV = (a: $J) => {
                 if (!(a instanceof Array)) { return new Error("expected array when parsing tuple"); }
                 if (a.length !== 2) { return new Error("wrong tuple length"); }
@@ -374,7 +405,7 @@ export class B {
             const parserMap = (a: $J) => {
                 if (typeof a !== "object" || a === null || a instanceof Array) { return new Error("expected object when parsing map"); }
                 const coll = {} as { [i: string]: __A };
-                const parser = (a: $J) => A.parseJson(a);
+                const parser = (a: $J) => A.parseJsonCore(a);
                 for (const k in a) {
                     const parsed = parser(a[k]!);
                     if (parsed instanceof Error) { return parsed } 
@@ -471,6 +502,7 @@ export class B {
         };
         return writer(a);
     }
+    
     static toJson(a: __B): string {
         return JSON.stringify(this.toJsonCore(a));
     }
@@ -599,19 +631,3 @@ function $writeNull(a: null): $J { return null; }
 function $writeBinray(a: Uint8Array): $J { return $tob64(a) }
 function $writeString(a: string): $J { return a; }
 
-const a = A.toJson({
-    enu: { struct: "aaa" },
-    name: [],
-    name2: [],
-    session: "rgwrwgf",
-    str: {
-        struct: "Gregr",
-        struct2: "22"
-    },
-    technicalIdentifier: {},
-})
-
-console.log(a)
-
-const aa = A.parseJson(JSON.parse(a))
-console.log(aa)

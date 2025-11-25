@@ -5,7 +5,7 @@ type A = {
     t2 time2?: string,
     t4 time4?: { y: i64, m: i64, d: i64 },
     ti technicalIdentifier: map(i64),
-    //a another: B,
+    a another?: B,
     str: {
         struct: string,
         struct2: string,
