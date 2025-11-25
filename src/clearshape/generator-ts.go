@@ -197,26 +197,36 @@ func cgtsStructParserJson(lines []LnkStructOrEnumLine, indent string) []string {
 		camelIdent := cgtsBannedWordsMangle(hfNormalizedToCamel(line.ProgName))
 		fieldAccessor := "copycat[" + cgtsEncodeString(line.WireName) + "]"
 		if !line.Omittable {
-			write(1, fmt.Sprintf(`if (%s === undefined) { return new Error("required field '%s' is undefined") }`, fieldAccessor, camelIdent))
+			write(1, fmt.Sprintf(
+				`if (%s === undefined) { return new Error("required field '%s' (wire name '" + %s + "') is undefined") }`, 
+				fieldAccessor, camelIdent, cgtsEncodeString(line.WireName)),
+			)
 		}
 	}
 	write(1, "// for each field: parse, respecting requiredness, early return on error")
 	for _, line := range linesWithoutReserved {
 		pascalIdent := cgtsBannedWordsMangle(hfNormalizedToPascal(line.ProgName))
+		camelIdent := cgtsBannedWordsMangle(hfNormalizedToCamel(line.ProgName))
 		fieldAccessor := "copycat[" + cgtsEncodeString(line.WireName) + "]"
 		if line.Omittable {
-			write(1, fmt.Sprintf("const parsed%s = %s === undefined ? undefined : parser%s(%s);", pascalIdent, fieldAccessor, pascalIdent, fieldAccessor))
+			write(1, fmt.Sprintf(
+				"const parsed%s = %s === undefined ? undefined : parser%s(%s);", 
+				pascalIdent, fieldAccessor, pascalIdent, fieldAccessor),
+			)
 		} else {
 			write(1, fmt.Sprintf("const parsed%s = parser%s(%s);", pascalIdent, pascalIdent, fieldAccessor))
 		}
-		write(1, fmt.Sprintf("if (parsed%s instanceof Error) { return parsed%s; }", pascalIdent, pascalIdent))
+		write(1, fmt.Sprintf(
+			`if (parsed%s instanceof Error) { return new Error("error when parsing field %s (wire name '" + %s + "')", { cause: parsed%s }); }`, 
+			pascalIdent, camelIdent, cgtsEncodeString(line.WireName), pascalIdent,
+		))
 	}
 	write(1, "// for each field: delete field from copycat object")
 	for _, line := range linesWithoutReserved {
 		fieldAccessor := "copycat[" + cgtsEncodeString(line.WireName) + "]"
 		write(1, "delete "+fieldAccessor+";")
 	}
-	write(1, `if (Object.keys(copycat).length > 0) { return new Error("unknown fields present"); }`)
+	write(1, `if (Object.keys(copycat).length > 0) { return new Error("unknown fields present: " + Object.keys(copycat).join(", ")); }`)
 	write(1, "return {")
 	for _, line := range linesWithoutReserved {
 		camelIdent := cgtsBannedWordsMangle(hfNormalizedToCamel(line.ProgName))
@@ -238,7 +248,7 @@ func cgtsEnumParserJson(lines []LnkStructOrEnumLine, indent string) []string {
 	multiWr(write, 1, "type retType = ", typeLines, ";")
 	write(1, `if (typeof a !== "object" || a === null || a instanceof Array) { return new Error("expected object when parsing enum"); }`)
 	write(1, `const entries = Object.entries(a);`)
-	write(1, `if (entries.length !== 1) { return new Error("multiple fields defined while parsing enum"); } `)
+	write(1, `if (entries.length !== 1) { return new Error("enum values must contain exactly 1 field"); } `)
 	write(1, `const [k, v] = entries[0]!;`)
 	linesWithoutReserved := hfSkipReservedLnkStructOrEnumLines(lines)
 	write(1, "switch (k) {")
@@ -253,7 +263,12 @@ func cgtsEnumParserJson(lines []LnkStructOrEnumLine, indent string) []string {
 		write(1, "break;")
 	}
 	write(1, "default: ")
-	write(2, `return new Error("unknown variant name while parsing enum");`)
+	write(2, `return new Error("unknown variant name while parsing enum, expected one of " + [`)
+	for _, line := range linesWithoutReserved {
+		camelIdent := cgtsBannedWordsMangle(hfNormalizedToCamel(line.ProgName))
+		write(3, fmt.Sprintf(`"%s ('" + %s + "')",`, camelIdent, cgtsEncodeString(line.WireName)))
+	}
+	write(2, `].join(" / "));`)
 	write(1, "}")
 	write(0, "}")
 	return b
@@ -293,7 +308,7 @@ func cgtsListParserJson(innerType LnkTypeExpr, indent string) []string {
 	multiWr(write, 1, "const parser = ", innerParser, ";")
 	write(1, `for (const elem of a) {`)
 	write(2, "const parsed = parser(elem);")
-	write(2, "if (parsed instanceof Error) { return parsed } ")
+	write(2, `if (parsed instanceof Error) { return new Error("failed to parse list inner type", { cause: parsed }); } `)
 	write(2, "coll.push(parsed);")
 	write(1, `}`)
 	write(1, `return coll;`)
@@ -330,7 +345,7 @@ func cgtsMapParserJson(innerType LnkTypeExpr, indent string) []string {
 	multiWr(write, 1, "const parser = ", innerParser, ";")
 	write(1, `for (const k in a) {`)
 	write(2, "const parsed = parser(a[k]!);")
-	write(2, "if (parsed instanceof Error) { return parsed } ")
+	write(2, `if (parsed instanceof Error) { return new Error("failed to parse map's inner type", { cause: parsed }); } `)
 	write(2, "coll[k] = parsed;")
 	write(1, `}`)
 	write(1, `return coll;`)
@@ -371,7 +386,10 @@ func cgTsTupleParserJson(innerTypes []LnkTypeExpr, indent string) []string {
 	for i := range innerTypes {
 		iStr := strconv.Itoa(i)
 		write(1, fmt.Sprintf("const parsed%s = parser%s(a[%s]!);", iStr, iStr, iStr))
-		write(1, fmt.Sprintf(`if (parsed%s instanceof Error) { return parsed%s }`, iStr, iStr))
+		write(1, fmt.Sprintf(
+			`if (parsed%s instanceof Error) { return new Error("failed to parse item #%s in tuple", { cause: parsed%s }); }`, 
+			iStr, iStr, iStr,
+		))
 	}
 	write(1, "return [")
 	for i := range innerTypes {
@@ -535,6 +553,7 @@ func cgtsEncodeString(s string) string {
 	s = strings.ReplaceAll(s, "\r", "\\r")
 	s = strings.ReplaceAll(s, "\t", "\\t")
 	s = strings.ReplaceAll(s, `"`, "\\\"")
+	s = strings.ReplaceAll(s, `'`, "\\'")
 	return `"` + s + `"`
 }
 
