@@ -11,7 +11,7 @@ type ProgramCliParameters struct {
 	tsOut         string
 	mlOut         string
 	goOut         string
-	goPackageName string
+	goPackage string
 	verb          string
 	name          string
 	rest          []string
@@ -46,8 +46,8 @@ func hfcliParseArgs(args []string) ProgramCliParameters {
 				programCliParameters.tsOut = next
 			case "--go-out":
 				programCliParameters.goOut = next
-			case "--go-package-name":
-				programCliParameters.goPackageName = next
+			case "--go-package":
+				programCliParameters.goPackage = next
 			case "--ml-out":
 				programCliParameters.mlOut = next
 			case "--indent":
@@ -106,30 +106,31 @@ func build(args ProgramCliParameters) {
 	}
 	fmt.Printf("\n\n\nLNK\n%s", lnkProgram.DebugString())
 	// parsing complete
-	indent := "";
+	indent := ""
 	switch args.indent {
 	case "", "4":
-		indent = "    ";
+		indent = "    "
 	case "tab":
-		indent = "\t";
+		indent = "\t"
 	case "2":
-		indent = "  ";
+		indent = "  "
 	default:
-		log.Fatal("--indent must be `4`, `2`, `tab` or unspecified");
+		log.Fatal("--indent must be `4`, `2`, `tab` or unspecified")
 	}
 	//
 	if args.tsOut != "" {
-		program := cgtsProgramTypescript(lnkProgram, indent, "\n");
+		program := cgtsProgram(lnkProgram, indent, "\n")
 		fmt.Printf("\n\n\nPROG-TS\n%s", program)
-		writeFile(args.tsOut, program);
+		writeFile(args.tsOut, program)
 	}
-	// if args.goOut != "" {
-	// 	if args.goPackageName == "" {
-	// 		log.Fatal("--go-package-name must be present when --go-out is specified");
-	// 	}
-	// 	program := cgProgramGolang(checked, indent, args.goPackageName);
-	// 	writeFile(args.goOut, program);
-	// }
+	if args.goOut != "" {
+		fltProgram := fltFlattenProgram(lnkProgram)
+		if args.goPackage == "" {
+			log.Fatal("--go-package must be present when --go-out is specified");
+		}
+		program := cggoProgram(fltProgram, indent, "\n", args.goPackage);
+		writeFile(args.goOut, program);
+	}
 }
 
 func show_ast(args ProgramCliParameters) {
@@ -273,7 +274,7 @@ func main() {
 	//fmt.Printf("//args: %#v", args);
 
 	if args.verb == "build" && true {
-		build(args);
+		build(args)
 	} else if args.verb == "show-ast" {
 		show_ast(args)
 	} else if args.verb == "show-flt" {

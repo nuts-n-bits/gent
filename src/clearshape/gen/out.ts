@@ -1,3 +1,7 @@
+export type __C = { [_: string]: string }
+
+export type __D = string[]
+
 export type __A = {
     session: string,
     name: {
@@ -35,13 +39,14 @@ export type __B = {
     ],
     d: [string],
     map: { [_: string]: __A },
+    bin: { [_: string]: Uint8Array[] },
 }
 
 export class A {
-    static parseJson(a: string): __A | Error {
+    static fromJson(a: string): __A | Error {
         try { 
             const obj = JSON.parse(a);
-            return this.parseJsonCore(obj);
+            return this.fromJsonCore(obj);
         } catch(e) {
             if (!(e instanceof Error)) { return new Error("caught non error"); }
             return e;
@@ -49,7 +54,7 @@ export class A {
         
     }
     
-    static parseJsonCore(a: $J): __A | Error {
+    static fromJsonCore(a: $J): __A | Error {
         const parser = (a: $J) => {
             if (typeof a !== "object" || a === null || a instanceof Array) { return new Error("expected object when parsing struct"); }
             const copycat = { ...a };
@@ -66,20 +71,20 @@ export class A {
                     // for each field: create parsers
                     const parserS = $parseString;
                     // for required fields only: check presence
-                    if (copycat["s"] === undefined) { return new Error("required field 's' is undefined") }
+                    if (copycat["s"] === undefined) { return new Error("required field 's' (wire name '" + "s" + "') is undefined") }
                     // for each field: parse, respecting requiredness, early return on error
                     const parsedS = parserS(copycat["s"]);
-                    if (parsedS instanceof Error) { return parsedS; }
+                    if (parsedS instanceof Error) { return new Error("error when parsing field s (wire name '" + "s" + "')", { cause: parsedS }); }
                     // for each field: delete field from copycat object
                     delete copycat["s"];
-                    if (Object.keys(copycat).length > 0) { return new Error("unknown fields present"); }
+                    if (Object.keys(copycat).length > 0) { return new Error("unknown fields present: " + Object.keys(copycat).join(", ")); }
                     return {
                         s: parsedS, 
                     }
                 };
                 for (const elem of a) {
                     const parsed = parser(elem);
-                    if (parsed instanceof Error) { return parsed } 
+                    if (parsed instanceof Error) { return new Error("failed to parse list inner type", { cause: parsed }); } 
                     coll.push(parsed);
                 }
                 return coll;
@@ -90,7 +95,7 @@ export class A {
                 const parser = $parseString;
                 for (const elem of a) {
                     const parsed = parser(elem);
-                    if (parsed instanceof Error) { return parsed } 
+                    if (parsed instanceof Error) { return new Error("failed to parse list inner type", { cause: parsed }); } 
                     coll.push(parsed);
                 }
                 return coll;
@@ -104,21 +109,21 @@ export class A {
                 const parserM = $parseI64;
                 const parserD = $parseI64;
                 // for required fields only: check presence
-                if (copycat["y"] === undefined) { return new Error("required field 'y' is undefined") }
-                if (copycat["m"] === undefined) { return new Error("required field 'm' is undefined") }
-                if (copycat["d"] === undefined) { return new Error("required field 'd' is undefined") }
+                if (copycat["y"] === undefined) { return new Error("required field 'y' (wire name '" + "y" + "') is undefined") }
+                if (copycat["m"] === undefined) { return new Error("required field 'm' (wire name '" + "m" + "') is undefined") }
+                if (copycat["d"] === undefined) { return new Error("required field 'd' (wire name '" + "d" + "') is undefined") }
                 // for each field: parse, respecting requiredness, early return on error
                 const parsedY = parserY(copycat["y"]);
-                if (parsedY instanceof Error) { return parsedY; }
+                if (parsedY instanceof Error) { return new Error("error when parsing field y (wire name '" + "y" + "')", { cause: parsedY }); }
                 const parsedM = parserM(copycat["m"]);
-                if (parsedM instanceof Error) { return parsedM; }
+                if (parsedM instanceof Error) { return new Error("error when parsing field m (wire name '" + "m" + "')", { cause: parsedM }); }
                 const parsedD = parserD(copycat["d"]);
-                if (parsedD instanceof Error) { return parsedD; }
+                if (parsedD instanceof Error) { return new Error("error when parsing field d (wire name '" + "d" + "')", { cause: parsedD }); }
                 // for each field: delete field from copycat object
                 delete copycat["y"];
                 delete copycat["m"];
                 delete copycat["d"];
-                if (Object.keys(copycat).length > 0) { return new Error("unknown fields present"); }
+                if (Object.keys(copycat).length > 0) { return new Error("unknown fields present: " + Object.keys(copycat).join(", ")); }
                 return {
                     y: parsedY, 
                     m: parsedM, 
@@ -131,12 +136,12 @@ export class A {
                 const parser = $parseI64;
                 for (const k in a) {
                     const parsed = parser(a[k]!);
-                    if (parsed instanceof Error) { return parsed } 
+                    if (parsed instanceof Error) { return new Error("failed to parse map's inner type", { cause: parsed }); } 
                     coll[k] = parsed;
                 }
                 return coll;
             };
-            const parserAnother = (a: $J) => B.parseJsonCore(a);
+            const parserAnother = (a: $J) => B.fromJsonCore(a);
             const parserStr = (a: $J) => {
                 if (typeof a !== "object" || a === null || a instanceof Array) { return new Error("expected object when parsing struct"); }
                 const copycat = { ...a };
@@ -144,17 +149,17 @@ export class A {
                 const parserStruct = $parseString;
                 const parserStruct2 = $parseString;
                 // for required fields only: check presence
-                if (copycat["struct"] === undefined) { return new Error("required field 'struct' is undefined") }
-                if (copycat["struct2"] === undefined) { return new Error("required field 'struct2' is undefined") }
+                if (copycat["struct"] === undefined) { return new Error("required field 'struct' (wire name '" + "struct" + "') is undefined") }
+                if (copycat["struct2"] === undefined) { return new Error("required field 'struct2' (wire name '" + "struct2" + "') is undefined") }
                 // for each field: parse, respecting requiredness, early return on error
                 const parsedStruct = parserStruct(copycat["struct"]);
-                if (parsedStruct instanceof Error) { return parsedStruct; }
+                if (parsedStruct instanceof Error) { return new Error("error when parsing field struct (wire name '" + "struct" + "')", { cause: parsedStruct }); }
                 const parsedStruct2 = parserStruct2(copycat["struct2"]);
-                if (parsedStruct2 instanceof Error) { return parsedStruct2; }
+                if (parsedStruct2 instanceof Error) { return new Error("error when parsing field struct2 (wire name '" + "struct2" + "')", { cause: parsedStruct2 }); }
                 // for each field: delete field from copycat object
                 delete copycat["struct"];
                 delete copycat["struct2"];
-                if (Object.keys(copycat).length > 0) { return new Error("unknown fields present"); }
+                if (Object.keys(copycat).length > 0) { return new Error("unknown fields present: " + Object.keys(copycat).join(", ")); }
                 return {
                     struct: parsedStruct, 
                     struct2: parsedStruct2, 
@@ -168,7 +173,7 @@ export class A {
                 };
                 if (typeof a !== "object" || a === null || a instanceof Array) { return new Error("expected object when parsing enum"); }
                 const entries = Object.entries(a);
-                if (entries.length !== 1) { return new Error("multiple fields defined while parsing enum"); } 
+                if (entries.length !== 1) { return new Error("enum values must contain exactly 1 field"); } 
                 const [k, v] = entries[0]!;
                 switch (k) {
                 case "struct": 
@@ -182,35 +187,38 @@ export class A {
                     return { struct2: parsedStruct2 } as retType; 
                 break;
                 default: 
-                    return new Error("unknown variant name while parsing enum");
+                    return new Error("unknown variant name while parsing enum, expected one of " + [
+                        "struct ('" + "struct" + "')",
+                        "struct2 ('" + "struct2" + "')",
+                    ].join(" / "));
                 }
             };
             // for required fields only: check presence
-            if (copycat["s"] === undefined) { return new Error("required field 'session' is undefined") }
-            if (copycat["n"] === undefined) { return new Error("required field 'name' is undefined") }
-            if (copycat["n2"] === undefined) { return new Error("required field 'name2' is undefined") }
-            if (copycat["ti"] === undefined) { return new Error("required field 'technicalIdentifier' is undefined") }
-            if (copycat["str"] === undefined) { return new Error("required field 'str' is undefined") }
-            if (copycat["enu"] === undefined) { return new Error("required field 'enu' is undefined") }
+            if (copycat["s"] === undefined) { return new Error("required field 'session' (wire name '" + "s" + "') is undefined") }
+            if (copycat["n"] === undefined) { return new Error("required field 'name' (wire name '" + "n" + "') is undefined") }
+            if (copycat["n2"] === undefined) { return new Error("required field 'name2' (wire name '" + "n2" + "') is undefined") }
+            if (copycat["ti"] === undefined) { return new Error("required field 'technicalIdentifier' (wire name '" + "ti" + "') is undefined") }
+            if (copycat["str"] === undefined) { return new Error("required field 'str' (wire name '" + "str" + "') is undefined") }
+            if (copycat["enu"] === undefined) { return new Error("required field 'enu' (wire name '" + "enu" + "') is undefined") }
             // for each field: parse, respecting requiredness, early return on error
             const parsedSession = parserSession(copycat["s"]);
-            if (parsedSession instanceof Error) { return parsedSession; }
+            if (parsedSession instanceof Error) { return new Error("error when parsing field session (wire name '" + "s" + "')", { cause: parsedSession }); }
             const parsedName = parserName(copycat["n"]);
-            if (parsedName instanceof Error) { return parsedName; }
+            if (parsedName instanceof Error) { return new Error("error when parsing field name (wire name '" + "n" + "')", { cause: parsedName }); }
             const parsedName2 = parserName2(copycat["n2"]);
-            if (parsedName2 instanceof Error) { return parsedName2; }
+            if (parsedName2 instanceof Error) { return new Error("error when parsing field name2 (wire name '" + "n2" + "')", { cause: parsedName2 }); }
             const parsedTime2 = copycat["t2"] === undefined ? undefined : parserTime2(copycat["t2"]);
-            if (parsedTime2 instanceof Error) { return parsedTime2; }
+            if (parsedTime2 instanceof Error) { return new Error("error when parsing field time2 (wire name '" + "t2" + "')", { cause: parsedTime2 }); }
             const parsedTime4 = copycat["t4"] === undefined ? undefined : parserTime4(copycat["t4"]);
-            if (parsedTime4 instanceof Error) { return parsedTime4; }
+            if (parsedTime4 instanceof Error) { return new Error("error when parsing field time4 (wire name '" + "t4" + "')", { cause: parsedTime4 }); }
             const parsedTechnicalIdentifier = parserTechnicalIdentifier(copycat["ti"]);
-            if (parsedTechnicalIdentifier instanceof Error) { return parsedTechnicalIdentifier; }
+            if (parsedTechnicalIdentifier instanceof Error) { return new Error("error when parsing field technicalIdentifier (wire name '" + "ti" + "')", { cause: parsedTechnicalIdentifier }); }
             const parsedAnother = copycat["a"] === undefined ? undefined : parserAnother(copycat["a"]);
-            if (parsedAnother instanceof Error) { return parsedAnother; }
+            if (parsedAnother instanceof Error) { return new Error("error when parsing field another (wire name '" + "a" + "')", { cause: parsedAnother }); }
             const parsedStr = parserStr(copycat["str"]);
-            if (parsedStr instanceof Error) { return parsedStr; }
+            if (parsedStr instanceof Error) { return new Error("error when parsing field str (wire name '" + "str" + "')", { cause: parsedStr }); }
             const parsedEnu = parserEnu(copycat["enu"]);
-            if (parsedEnu instanceof Error) { return parsedEnu; }
+            if (parsedEnu instanceof Error) { return new Error("error when parsing field enu (wire name '" + "enu" + "')", { cause: parsedEnu }); }
             // for each field: delete field from copycat object
             delete copycat["s"];
             delete copycat["n"];
@@ -221,7 +229,7 @@ export class A {
             delete copycat["a"];
             delete copycat["str"];
             delete copycat["enu"];
-            if (Object.keys(copycat).length > 0) { return new Error("unknown fields present"); }
+            if (Object.keys(copycat).length > 0) { return new Error("unknown fields present: " + Object.keys(copycat).join(", ")); }
             return {
                 session: parsedSession, 
                 name: parsedName, 
@@ -341,10 +349,10 @@ export class A {
 }
 
 export class B {
-    static parseJson(a: string): __B | Error {
+    static fromJson(a: string): __B | Error {
         try { 
             const obj = JSON.parse(a);
-            return this.parseJsonCore(obj);
+            return this.fromJsonCore(obj);
         } catch(e) {
             if (!(e instanceof Error)) { return new Error("caught non error"); }
             return e;
@@ -352,21 +360,21 @@ export class B {
         
     }
     
-    static parseJsonCore(a: $J): __B | Error {
+    static fromJsonCore(a: $J): __B | Error {
         const parser = (a: $J) => {
             if (typeof a !== "object" || a === null || a instanceof Array) { return new Error("expected object when parsing struct"); }
             const copycat = { ...a };
             // for each field: create parsers
-            const parserS = (a: $J) => A.parseJsonCore(a);
+            const parserS = (a: $J) => A.fromJsonCore(a);
             const parserV = (a: $J) => {
                 if (!(a instanceof Array)) { return new Error("expected array when parsing tuple"); }
                 if (a.length !== 2) { return new Error("wrong tuple length"); }
                 const parser0 = $parseString;
                 const parser1 = $parseString;
                 const parsed0 = parser0(a[0]!);
-                if (parsed0 instanceof Error) { return parsed0 }
+                if (parsed0 instanceof Error) { return new Error("failed to parse item #0 in tuple", { cause: parsed0 }); }
                 const parsed1 = parser1(a[1]!);
-                if (parsed1 instanceof Error) { return parsed1 }
+                if (parsed1 instanceof Error) { return new Error("failed to parse item #1 in tuple", { cause: parsed1 }); }
                 return [
                     parsed0,
                     parsed1,
@@ -381,9 +389,9 @@ export class B {
                 const parser0 = $parseI64;
                 const parser1 = $parseString;
                 const parsed0 = parser0(a[0]!);
-                if (parsed0 instanceof Error) { return parsed0 }
+                if (parsed0 instanceof Error) { return new Error("failed to parse item #0 in tuple", { cause: parsed0 }); }
                 const parsed1 = parser1(a[1]!);
-                if (parsed1 instanceof Error) { return parsed1 }
+                if (parsed1 instanceof Error) { return new Error("failed to parse item #1 in tuple", { cause: parsed1 }); }
                 return [
                     parsed0,
                     parsed1,
@@ -397,7 +405,7 @@ export class B {
                 if (a.length !== 1) { return new Error("wrong tuple length"); }
                 const parser0 = $parseString;
                 const parsed0 = parser0(a[0]!);
-                if (parsed0 instanceof Error) { return parsed0 }
+                if (parsed0 instanceof Error) { return new Error("failed to parse item #0 in tuple", { cause: parsed0 }); }
                 return [
                     parsed0,
                 ] as [string];
@@ -405,44 +413,70 @@ export class B {
             const parserMap = (a: $J) => {
                 if (typeof a !== "object" || a === null || a instanceof Array) { return new Error("expected object when parsing map"); }
                 const coll = {} as { [i: string]: __A };
-                const parser = (a: $J) => A.parseJsonCore(a);
+                const parser = (a: $J) => A.fromJsonCore(a);
                 for (const k in a) {
                     const parsed = parser(a[k]!);
-                    if (parsed instanceof Error) { return parsed } 
+                    if (parsed instanceof Error) { return new Error("failed to parse map's inner type", { cause: parsed }); } 
+                    coll[k] = parsed;
+                }
+                return coll;
+            };
+            const parserBin = (a: $J) => {
+                if (typeof a !== "object" || a === null || a instanceof Array) { return new Error("expected object when parsing map"); }
+                const coll = {} as { [i: string]: Uint8Array[] };
+                const parser = (a: $J) => {
+                    if (!(a instanceof Array)) { return new Error("expected array while parsing list"); }
+                    const coll = [] as Uint8Array[];
+                    const parser = $parseBinary;
+                    for (const elem of a) {
+                        const parsed = parser(elem);
+                        if (parsed instanceof Error) { return new Error("failed to parse list inner type", { cause: parsed }); } 
+                        coll.push(parsed);
+                    }
+                    return coll;
+                };
+                for (const k in a) {
+                    const parsed = parser(a[k]!);
+                    if (parsed instanceof Error) { return new Error("failed to parse map's inner type", { cause: parsed }); } 
                     coll[k] = parsed;
                 }
                 return coll;
             };
             // for required fields only: check presence
-            if (copycat["s"] === undefined) { return new Error("required field 's' is undefined") }
-            if (copycat["v"] === undefined) { return new Error("required field 'v' is undefined") }
-            if (copycat["c"] === undefined) { return new Error("required field 'c' is undefined") }
-            if (copycat["d"] === undefined) { return new Error("required field 'd' is undefined") }
-            if (copycat["map"] === undefined) { return new Error("required field 'map' is undefined") }
+            if (copycat["s"] === undefined) { return new Error("required field 's' (wire name '" + "s" + "') is undefined") }
+            if (copycat["v"] === undefined) { return new Error("required field 'v' (wire name '" + "v" + "') is undefined") }
+            if (copycat["c"] === undefined) { return new Error("required field 'c' (wire name '" + "c" + "') is undefined") }
+            if (copycat["d"] === undefined) { return new Error("required field 'd' (wire name '" + "d" + "') is undefined") }
+            if (copycat["map"] === undefined) { return new Error("required field 'map' (wire name '" + "map" + "') is undefined") }
+            if (copycat["bin"] === undefined) { return new Error("required field 'bin' (wire name '" + "bin" + "') is undefined") }
             // for each field: parse, respecting requiredness, early return on error
             const parsedS = parserS(copycat["s"]);
-            if (parsedS instanceof Error) { return parsedS; }
+            if (parsedS instanceof Error) { return new Error("error when parsing field s (wire name '" + "s" + "')", { cause: parsedS }); }
             const parsedV = parserV(copycat["v"]);
-            if (parsedV instanceof Error) { return parsedV; }
+            if (parsedV instanceof Error) { return new Error("error when parsing field v (wire name '" + "v" + "')", { cause: parsedV }); }
             const parsedC = parserC(copycat["c"]);
-            if (parsedC instanceof Error) { return parsedC; }
+            if (parsedC instanceof Error) { return new Error("error when parsing field c (wire name '" + "c" + "')", { cause: parsedC }); }
             const parsedD = parserD(copycat["d"]);
-            if (parsedD instanceof Error) { return parsedD; }
+            if (parsedD instanceof Error) { return new Error("error when parsing field d (wire name '" + "d" + "')", { cause: parsedD }); }
             const parsedMap = parserMap(copycat["map"]);
-            if (parsedMap instanceof Error) { return parsedMap; }
+            if (parsedMap instanceof Error) { return new Error("error when parsing field map (wire name '" + "map" + "')", { cause: parsedMap }); }
+            const parsedBin = parserBin(copycat["bin"]);
+            if (parsedBin instanceof Error) { return new Error("error when parsing field bin (wire name '" + "bin" + "')", { cause: parsedBin }); }
             // for each field: delete field from copycat object
             delete copycat["s"];
             delete copycat["v"];
             delete copycat["c"];
             delete copycat["d"];
             delete copycat["map"];
-            if (Object.keys(copycat).length > 0) { return new Error("unknown fields present"); }
+            delete copycat["bin"];
+            if (Object.keys(copycat).length > 0) { return new Error("unknown fields present: " + Object.keys(copycat).join(", ")); }
             return {
                 s: parsedS, 
                 v: parsedV, 
                 c: parsedC, 
                 d: parsedD, 
                 map: parsedMap, 
+                bin: parsedBin, 
             }
         };
         return parser(a);
@@ -492,18 +526,122 @@ export class B {
                 }
                 return coll;
             };
+            const wrBin: (a: { [_: string]: Uint8Array[] }) => $J = a => {
+                const coll = {} as { [_: string]: $J };
+                for (const k in a) {
+                    const innerWriter: (a: Uint8Array[]) => $J = a => {
+                        const coll = [] as $J[];
+                        for (const elem of a) {
+                            const innerWriter: (a: Uint8Array) => $J = $writeBinary;
+                            coll.push(innerWriter(elem));
+                        }
+                        return coll;
+                    };
+                    coll[k] = innerWriter(a[k]!);
+                }
+                return coll;
+            };
             const ret: $J = {}
             ret["s"] = wrS(a.s);
             ret["v"] = wrV(a.v);
             ret["c"] = wrC(a.c);
             ret["d"] = wrD(a.d);
             ret["map"] = wrMap(a.map);
+            ret["bin"] = wrBin(a.bin);
             return ret;
         };
         return writer(a);
     }
     
     static toJson(a: __B): string {
+        return JSON.stringify(this.toJsonCore(a));
+    }
+}
+
+export class C {
+    static fromJson(a: string): __C | Error {
+        try { 
+            const obj = JSON.parse(a);
+            return this.fromJsonCore(obj);
+        } catch(e) {
+            if (!(e instanceof Error)) { return new Error("caught non error"); }
+            return e;
+        }
+        
+    }
+    
+    static fromJsonCore(a: $J): __C | Error {
+        const parser = (a: $J) => {
+            if (typeof a !== "object" || a === null || a instanceof Array) { return new Error("expected object when parsing map"); }
+            const coll = {} as { [i: string]: string };
+            const parser = $parseString;
+            for (const k in a) {
+                const parsed = parser(a[k]!);
+                if (parsed instanceof Error) { return new Error("failed to parse map's inner type", { cause: parsed }); } 
+                coll[k] = parsed;
+            }
+            return coll;
+        };
+        return parser(a);
+    }
+    
+    static toJsonCore(a: __C): $J {
+        const writer: (a: __C) => $J = a => {
+            const coll = {} as { [_: string]: $J };
+            for (const k in a) {
+                const innerWriter: (a: string) => $J = $writeString;
+                coll[k] = innerWriter(a[k]!);
+            }
+            return coll;
+        };
+        return writer(a);
+    }
+    
+    static toJson(a: __C): string {
+        return JSON.stringify(this.toJsonCore(a));
+    }
+}
+
+export class D {
+    static fromJson(a: string): __D | Error {
+        try { 
+            const obj = JSON.parse(a);
+            return this.fromJsonCore(obj);
+        } catch(e) {
+            if (!(e instanceof Error)) { return new Error("caught non error"); }
+            return e;
+        }
+        
+    }
+    
+    static fromJsonCore(a: $J): __D | Error {
+        const parser = (a: $J) => {
+            if (!(a instanceof Array)) { return new Error("expected array while parsing list"); }
+            const coll = [] as string[];
+            const parser = $parseString;
+            for (const elem of a) {
+                const parsed = parser(elem);
+                if (parsed instanceof Error) { return new Error("failed to parse list inner type", { cause: parsed }); } 
+                coll.push(parsed);
+            }
+            return coll;
+        };
+        return parser(a);
+    }
+    
+    static toJsonCore(a: __D): $J {
+        const writer: (a: __D) => $J = a => {
+            const coll = [] as $J[];
+            for (const elem of a) {
+                const innerWriter: (a: string) => $J = $writeString;
+                coll.push(innerWriter(elem));
+            }
+            return coll;
+        };
+        return writer(a);
+    }
+    
+    static toJson(a: __D): string {
         return JSON.stringify(this.toJsonCore(a));
     }
 }
@@ -628,6 +766,6 @@ function $writeU64(a: bigint): $J { return a.toString(); }
 function $writeF64(a: number): $J { return a.toString(); }
 function $writeBoolean(a: boolean): $J { return a; }
 function $writeNull(a: null): $J { return null; }
-function $writeBinray(a: Uint8Array): $J { return $tob64(a) }
+function $writeBinary(a: Uint8Array): $J { return $tob64(a) }
 function $writeString(a: string): $J { return a; }
 

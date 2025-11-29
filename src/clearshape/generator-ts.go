@@ -10,7 +10,7 @@ import (
 //go:embed runtime/lib-typescript.ts
 var cgtsLib string
 
-func cgtsProgramTypescript(lnkProgram LnkProgram, indent string, newline string) string {
+func cgtsProgram(lnkProgram LnkProgram, indent string, newline string) string {
 	var b strings.Builder
 	write := func(indentCount int, s string) {
 		b.WriteString(strings.Repeat(indent, indentCount) + s + newline)
@@ -24,10 +24,10 @@ func cgtsProgramTypescript(lnkProgram LnkProgram, indent string, newline string)
 	for topIdent, typeExpr := range lnkProgram.Types {
 		topIdent = cgtsBannedWordsMangle(topIdent)
 		write(0, "export class "+topIdent+" {")
-		write(1, "static parseJson(a: string): __"+topIdent+" | Error {")
+		write(1, "static fromJson(a: string): __"+topIdent+" | Error {")
 		write(2, "try { ")
 		write(3, "const obj = JSON.parse(a);")
-		write(3, "return this.parseJsonCore(obj);")
+		write(3, "return this.fromJsonCore(obj);")
 		write(2, "} catch(e) {")
 		write(3, `if (!(e instanceof Error)) { return new Error("caught non error"); }`)
 		write(3, `return e;`)
@@ -35,7 +35,7 @@ func cgtsProgramTypescript(lnkProgram LnkProgram, indent string, newline string)
 		write(2, "")
 		write(1, "}")
 		write(1, "")
-		write(1, "static parseJsonCore(a: $J): __"+topIdent+" | Error {")
+		write(1, "static fromJsonCore(a: $J): __"+topIdent+" | Error {")
 		typeParser := cgtsTypeParserJson(typeExpr, indent)
 		multiWr(write, 2, "const parser = ", typeParser, ";")
 		write(2, "return parser(a);")
@@ -69,9 +69,9 @@ func cgtsTypeParserJson(typeExpr LnkTypeExpr, indent string) []string {
 	} else if typeExpr.OneofStruct != nil {
 		return cgtsStructParserJson(*typeExpr.OneofStruct, indent)
 	} else if typeExpr.OneofTokenIdent != nil {
-		return []string{fmt.Sprintf("(a: $J) => %s.parseJsonCore(a)", typeExpr.OneofTokenIdent.Data)}
+		return []string{fmt.Sprintf("(a: $J) => %s.fromJsonCore(a)", typeExpr.OneofTokenIdent.Data)}
 	} else if typeExpr.OneofTuple != nil {
-		return cgTsTupleParserJson(*typeExpr.OneofTuple, indent)
+		return cgtsTupleParserJson(*typeExpr.OneofTuple, indent)
 	} else {
 		panic("unreachable")
 	}
@@ -135,7 +135,7 @@ func cgtsStructWriterJson(lines []LnkStructOrEnumLine, indent string) []string {
 		pascalIdent := cgtsBannedWordsMangle(hfNormalizedToPascal(line.ProgName))
 		innerWriter := cgtsTypeWriterJson(line.TypeExpr, indent)
 		innerType := cgtsTypeExpr(line.TypeExpr, indent)
-		multiWr2(write, 1, "const wr" + pascalIdent + ": (a: ", innerType, ") => $J = ", innerWriter, ";")
+		multiWr2(write, 1, "const wr"+pascalIdent+": (a: ", innerType, ") => $J = ", innerWriter, ";")
 	}
 	write(1, "const ret: $J = {}")
 	for _, line := range linesWithoutReserved {
@@ -198,7 +198,7 @@ func cgtsStructParserJson(lines []LnkStructOrEnumLine, indent string) []string {
 		fieldAccessor := "copycat[" + cgtsEncodeString(line.WireName) + "]"
 		if !line.Omittable {
 			write(1, fmt.Sprintf(
-				`if (%s === undefined) { return new Error("required field '%s' (wire name '" + %s + "') is undefined") }`, 
+				`if (%s === undefined) { return new Error("required field '%s' (wire name '" + %s + "') is undefined") }`,
 				fieldAccessor, camelIdent, cgtsEncodeString(line.WireName)),
 			)
 		}
@@ -210,14 +210,14 @@ func cgtsStructParserJson(lines []LnkStructOrEnumLine, indent string) []string {
 		fieldAccessor := "copycat[" + cgtsEncodeString(line.WireName) + "]"
 		if line.Omittable {
 			write(1, fmt.Sprintf(
-				"const parsed%s = %s === undefined ? undefined : parser%s(%s);", 
+				"const parsed%s = %s === undefined ? undefined : parser%s(%s);",
 				pascalIdent, fieldAccessor, pascalIdent, fieldAccessor),
 			)
 		} else {
 			write(1, fmt.Sprintf("const parsed%s = parser%s(%s);", pascalIdent, pascalIdent, fieldAccessor))
 		}
 		write(1, fmt.Sprintf(
-			`if (parsed%s instanceof Error) { return new Error("error when parsing field %s (wire name '" + %s + "')", { cause: parsed%s }); }`, 
+			`if (parsed%s instanceof Error) { return new Error("error when parsing field %s (wire name '" + %s + "')", { cause: parsed%s }); }`,
 			pascalIdent, camelIdent, cgtsEncodeString(line.WireName), pascalIdent,
 		))
 	}
@@ -369,7 +369,7 @@ func cgtsMapWriterJson(innerType LnkTypeExpr, indent string) []string {
 	return b
 }
 
-func cgTsTupleParserJson(innerTypes []LnkTypeExpr, indent string) []string {
+func cgtsTupleParserJson(innerTypes []LnkTypeExpr, indent string) []string {
 	b := []string{}
 	write := func(indentCount int, s string) {
 		b = append(b, strings.Repeat(indent, indentCount)+s)
@@ -387,7 +387,7 @@ func cgTsTupleParserJson(innerTypes []LnkTypeExpr, indent string) []string {
 		iStr := strconv.Itoa(i)
 		write(1, fmt.Sprintf("const parsed%s = parser%s(a[%s]!);", iStr, iStr, iStr))
 		write(1, fmt.Sprintf(
-			`if (parsed%s instanceof Error) { return new Error("failed to parse item #%s in tuple", { cause: parsed%s }); }`, 
+			`if (parsed%s instanceof Error) { return new Error("failed to parse item #%s in tuple", { cause: parsed%s }); }`,
 			iStr, iStr, iStr,
 		))
 	}
@@ -482,7 +482,7 @@ func cgtsTypeBuiltIn(builtinType BuiltinType) string {
 	} else if builtinType == BuiltinTypeNull {
 		return "null"
 	} else if builtinType == BuiltinTypeBinary {
-		return "string"
+		return "Uint8Array"
 	} else {
 		panic("unreachable")
 	}
@@ -561,67 +561,10 @@ func cgtsBannedWordsMangle(ident string) string {
 	switch ident {
 	case "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do", "else", "enum", "export", "extends", "false", "finally", "for", "function", "if", "import", "in", "instanceof", "new", "null", "return", "super", "switch", "this", "throw", "true", "try", "typeof", "var", "void", "while", "with", "yield":
 		return ident + "_"
-	case "JSON", "Json", "json", "Error", "Object", "Array", "BigInt", "Number":
+	case "JSON", "Json", "json", "Error", "Object", "Array", "BigInt", "Number", "Uint8Array":
 		return ident + "_"
 	default:
 		return ident
 	}
 }
 
-func multiWr(write func(int, string), indentCount int, before string, betweenLines []string, after string) {
-	if len(betweenLines) == 0 {
-		write(indentCount, before + after)
-		return
-	}
-	for i, line := range betweenLines {
-		if len(betweenLines) == 1 {
-			write(indentCount, before+line+after)
-		} else if i == 0 {
-			write(indentCount, before+line)
-		} else if i == len(betweenLines)-1 {
-			write(indentCount, line+after)
-		} else {
-			write(indentCount, line)
-		}
-	}
-}
-
-func multiWr2(
-	write func(int, string), 
-	indentCount int, 
-	before string, 
-	firstMultiLine []string, 
-	between string, 
-	secondMultiLine []string, 
-	after string,
-) {
-	if len(firstMultiLine) == 1 && len(secondMultiLine) == 1 {
-		write(indentCount, before + firstMultiLine[0] + between + secondMultiLine[0] + after)
-	} else if len(firstMultiLine) == 1 {
-		multiWr(write, indentCount, before + firstMultiLine[0] + between, secondMultiLine, after)
-	} else if len(secondMultiLine) == 1 {
-		multiWr(write, indentCount, before, firstMultiLine, between + secondMultiLine[0] + after)
-	} else if len(firstMultiLine) == 0 && len(secondMultiLine) == 0 {
-		write(indentCount, before + between + after)
-	} else if len(firstMultiLine) == 0 {
-		multiWr(write, indentCount, before + between, secondMultiLine, after)
-	} else if len(secondMultiLine) == 0 {
-		multiWr(write, indentCount, before, firstMultiLine, between + after)
-	} else {
-		for i, line := range firstMultiLine {
-			if i == 0 {
-				write(indentCount, before + line)
-			} else if i != len(firstMultiLine)-1 {
-				write(indentCount, line)
-			}
-		}
-		write(indentCount, firstMultiLine[len(firstMultiLine)-1] + between + secondMultiLine[0])
-		for i, line := range secondMultiLine {
-			if i != 0 {
-				write(indentCount, line)
-			} else if i == len(secondMultiLine)-1 {
-				write(indentCount, line + after)
-			}
-		}
-	}
-}

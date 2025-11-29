@@ -77,3 +77,72 @@ func hfSkipReservedLnkStructOrEnumLines(lines []LnkStructOrEnumLine) []LnkStruct
 	}
 	return coll
 }
+
+func hfSkipReservedFltStructOrEnumLines(lines []FltStructOrEnumLine) []FltStructOrEnumLine {
+	coll := []FltStructOrEnumLine{}
+	for _, line := range lines {
+		if line.IsReserved {
+			continue
+		}
+		coll = append(coll, line)
+	}
+	return coll
+}
+
+func multiWr(write func(int, string), indentCount int, before string, betweenLines []string, after string) {
+	if len(betweenLines) == 0 {
+		write(indentCount, before+after)
+		return
+	}
+	for i, line := range betweenLines {
+		if len(betweenLines) == 1 {
+			write(indentCount, before+line+after)
+		} else if i == 0 {
+			write(indentCount, before+line)
+		} else if i == len(betweenLines)-1 {
+			write(indentCount, line+after)
+		} else {
+			write(indentCount, line)
+		}
+	}
+}
+
+func multiWr2(
+	write func(int, string),
+	indentCount int,
+	before string,
+	firstMultiLine []string,
+	between string,
+	secondMultiLine []string,
+	after string,
+) {
+	if len(firstMultiLine) == 1 && len(secondMultiLine) == 1 {
+		write(indentCount, before+firstMultiLine[0]+between+secondMultiLine[0]+after)
+	} else if len(firstMultiLine) == 1 {
+		multiWr(write, indentCount, before+firstMultiLine[0]+between, secondMultiLine, after)
+	} else if len(secondMultiLine) == 1 {
+		multiWr(write, indentCount, before, firstMultiLine, between+secondMultiLine[0]+after)
+	} else if len(firstMultiLine) == 0 && len(secondMultiLine) == 0 {
+		write(indentCount, before+between+after)
+	} else if len(firstMultiLine) == 0 {
+		multiWr(write, indentCount, before+between, secondMultiLine, after)
+	} else if len(secondMultiLine) == 0 {
+		multiWr(write, indentCount, before, firstMultiLine, between+after)
+	} else {
+		for i, line := range firstMultiLine {
+			if i == 0 {
+				write(indentCount, before+line)
+			} else if i != len(firstMultiLine)-1 {
+				write(indentCount, line)
+			}
+		}
+		write(indentCount, firstMultiLine[len(firstMultiLine)-1]+between+secondMultiLine[0])
+		for i, line := range secondMultiLine {
+			if i != 0 {
+				write(indentCount, line)
+			} else if i == len(secondMultiLine)-1 {
+				write(indentCount, line+after)
+			}
+		}
+	}
+}

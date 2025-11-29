@@ -118,5 +118,5 @@ function $writeU64(a: bigint): $J { return a.toString(); }
 function $writeF64(a: number): $J { return a.toString(); }
 function $writeBoolean(a: boolean): $J { return a; }
 function $writeNull(a: null): $J { return null; }
-function $writeBinray(a: Uint8Array): $J { return $tob64(a) }
+function $writeBinary(a: Uint8Array): $J { return $tob64(a) }
 function $writeString(a: string): $J { return a; }

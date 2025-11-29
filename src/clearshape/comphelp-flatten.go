@@ -42,7 +42,6 @@ type FltStructOrEnumLine struct {
 // characters, plus another 32 characters of hex hash that is obtained by running the entire string through sha2-256
 // (sha2-256 outputs 64 hex asciis, the first 32 are used)
 func nameMint(ss []string) string {
-	fmt.Printf("minting: %#v \n", ss)
 	coll := ""
 	for _, e := range ss {
 		coll += strconv.Itoa(len(e))

@@ -22,5 +22,9 @@ type B = {
     c: [i64, string],
     d: [string],
     map: map(A),
+    bin: map(binary[]),
 }
 
+type C = map(string)
+
+type D = string[]
